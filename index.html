@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#E6E7EA" />
+  <title>NOZACK — Personal Sandbox</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="nav__inner">
+      <div class="nav__kicker">PERSONAL SANDBOX</div>
+      <nav class="nav__links">
+        <a href="#projects">Projects</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="hero">
+      <div class="titleStage" aria-label="NOZACK">
+        <div class="titleWord" id="titleWord" aria-hidden="true">
+          <span class="letter">N</span><span class="letter">O</span><span class="letter">Z</span><span class="letter">A</span><span class="letter">C</span><span class="letter">K</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="projects">
+      <div class="container">
+        <h2 class="h2">Projects</h2>
+        <p class="p">A rotating set of experiments and initiatives I&rsquo;m working on.</p>
+
+        <div class="cards">
+          <a class="card" href="#" aria-disabled="true">
+            <div class="card__title">BLT.STREAM</div>
+            <div class="card__meta">Building stacker game</div>
+            <div class="card__cta">Link this later →</div>
+          </a>
+
+          <a class="card" href="#" aria-disabled="true">
+            <div class="card__title">Notes</div>
+            <div class="card__meta">Ideas in progress</div>
+            <div class="card__cta">Coming soon →</div>
+          </a>
+
+          <a class="card" href="#" aria-disabled="true">
+            <div class="card__title">Gallery</div>
+            <div class="card__meta">Visual explorations</div>
+            <div class="card__cta">Coming soon →</div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="contact">
+      <div class="container">
+        <h2 class="h2">Contact</h2>
+        <p class="p">Send a message here or reach out on LinkedIn.</p>
+
+        <div class="contactGrid">
+          <form id="contactForm" class="form">
+            <label class="label">
+              <span>Name</span>
+              <input name="name" type="text" required maxlength="80" />
+            </label>
+
+            <label class="label">
+              <span>Email</span>
+              <input name="email" type="email" required maxlength="120" />
+            </label>
+
+            <label class="label label--full">
+              <span>Message</span>
+              <textarea name="message" required maxlength="2000" rows="6"></textarea>
+            </label>
+
+            <div class="formRow">
+              <button class="btn" type="submit">Send message</button>
+              <div class="formNote" id="formNote" role="status" aria-live="polite"></div>
+            </div>
+          </form>
+
+          <div class="contactSide">
+            <a class="liBtn" href="https://www.linkedin.com/in/kristanozack" target="_blank" rel="noopener">
+              <img src="./linkedin-connect.png" alt="LinkedIn Connect" />
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="container footer__inner">
+        <div>&copy; 2026 NOZACK</div>
+        <div>Personal Sandbox</div>
+      </div>
+    </footer>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+  <script src="./script.js"></script>
+</body>
+</html>
