@@ -1,21 +1,24 @@
 // functions/api/leaderboard.js
+// GET /api/leaderboard?limit=25
+// Returns weekly + all-time, one row per username (best score wins)
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
+  });
+}
 
 function weekKeyUTC(ms) {
-  // Week starts Monday 00:00 UTC
   const d = new Date(ms);
-  const day = d.getUTCDay();           // 0=Sun ... 6=Sat
+  const day = d.getUTCDay();
   const diff = (day === 0 ? -6 : 1 - day);
   d.setUTCDate(d.getUTCDate() + diff);
   d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
-}
-
-function normalizeRows(rows) {
-  return (rows || []).map(r => ({
-    name: r.username,
-    score: Number(r.score) || 0,
-    t: r.created_at ? Date.parse(r.created_at) || null : null
-  }));
+  return d.toISOString().slice(0, 10);
 }
 
 export async function onRequestGet({ request, env }) {
@@ -23,34 +26,55 @@ export async function onRequestGet({ request, env }) {
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "25", 10), 100);
   const wk = weekKeyUTC(Date.now());
 
-  // IMPORTANT:
-  // This uses env.DB (binding name). Your D1 database can be called "bltstream_leaderboard"
-  // in the UI — but the binding in Pages must be named DB for this code to work.
-
-  const weeklyRes = await env.DB.prepare(
-    `SELECT username, score, created_at
-     FROM scores
-     WHERE week_key = ?
-     ORDER BY score DESC, created_at ASC
-     LIMIT ?`
+  // Weekly: best score per username for this week
+  const weekly = await env.DB.prepare(
+    `
+    WITH lb AS (
+      SELECT
+        username,
+        MAX(score) AS score,
+        MIN(created_at) AS created_at
+      FROM scores
+      WHERE week_key = ?
+      GROUP BY username
+    )
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rank,
+      username,
+      score,
+      created_at
+    FROM lb
+    ORDER BY score DESC, created_at ASC
+    LIMIT ?
+    `
   ).bind(wk, limit).all();
 
-  const alltimeRes = await env.DB.prepare(
-    `SELECT username, score, created_at
-     FROM scores
-     ORDER BY score DESC, created_at ASC
-     LIMIT ?`
+  // All-time: best score per username across all weeks
+  const alltime = await env.DB.prepare(
+    `
+    WITH lb AS (
+      SELECT
+        username,
+        MAX(score) AS score,
+        MIN(created_at) AS created_at
+      FROM scores
+      GROUP BY username
+    )
+    SELECT
+      ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rank,
+      username,
+      score,
+      created_at
+    FROM lb
+    ORDER BY score DESC, created_at ASC
+    LIMIT ?
+    `
   ).bind(limit).all();
 
-  return new Response(JSON.stringify({
+  return json({
     ok: true,
     week_key: wk,
-    weekly: normalizeRows(weeklyRes.results),
-    alltime: normalizeRows(alltimeRes.results)
-  }), {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store"
-    }
+    weekly: weekly.results || [],
+    alltime: alltime.results || [],
   });
 }
