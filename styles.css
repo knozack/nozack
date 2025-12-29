@@ -123,15 +123,26 @@ main{ padding-top: 64px; }
 .card__meta{ margin-top: 8px; color: rgba(10,10,10,.62); font-size: 14px; }
 .card__cta{ margin-top: 12px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: rgba(10,10,10,.78); }
 
-/* Projects cards — increase height + bottom-align actions */
+/* Projects cards — consistent height, normal buttons */
 .projectsGrid > * {
-  min-height: 280px;           /* adjust if you want taller */
+  min-height: 320px;          /* taller cards, adjust if needed */
   display: flex;
   flex-direction: column;
 }
 
+/* Buttons inside cards should behave like normal inline buttons */
 .projectsGrid > * a.btn {
-  margin-top: auto;            /* pushes button to bottom */
+  margin-top: 10px;           /* simple spacing below text */
+}
+
+/* Smaller button variant (used inside BLT.STREAM card) */
+.btn--small{
+  padding: 10px 14px;
+  font-size: 12px;
+  border-radius: 999px;
+  width: auto;
+  display: inline-flex;
+  align-self: flex-start;     /* keeps it left-aligned in the card */
 }
 
 /* Contact */
