@@ -1,21 +1,9 @@
 // functions/api/leaderboard.js
-// GET /api/leaderboard?limit=25
-// Returns weekly + all-time, one row per username (best score wins)
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-    },
-  });
-}
 
 function weekKeyUTC(ms) {
   const d = new Date(ms);
-  const day = d.getUTCDay();
-  const diff = (day === 0 ? -6 : 1 - day);
+  const day = d.getUTCDay();          // 0=Sun
+  const diff = (day === 0 ? -6 : 1 - day); // back to Monday
   d.setUTCDate(d.getUTCDate() + diff);
   d.setUTCHours(0, 0, 0, 0);
   return d.toISOString().slice(0, 10);
@@ -26,7 +14,7 @@ export async function onRequestGet({ request, env }) {
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "25", 10), 100);
   const wk = weekKeyUTC(Date.now());
 
-  // Weekly: best score per username for this week
+  // Weekly: best per username for current week
   const weekly = await env.DB.prepare(
     `
     WITH lb AS (
@@ -38,18 +26,14 @@ export async function onRequestGet({ request, env }) {
       WHERE week_key = ?
       GROUP BY username
     )
-    SELECT
-      ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rank,
-      username,
-      score,
-      created_at
+    SELECT username, score, created_at
     FROM lb
     ORDER BY score DESC, created_at ASC
     LIMIT ?
     `
   ).bind(wk, limit).all();
 
-  // All-time: best score per username across all weeks
+  // All-time: best per username across all weeks
   const alltime = await env.DB.prepare(
     `
     WITH lb AS (
@@ -60,21 +44,17 @@ export async function onRequestGet({ request, env }) {
       FROM scores
       GROUP BY username
     )
-    SELECT
-      ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rank,
-      username,
-      score,
-      created_at
+    SELECT username, score, created_at
     FROM lb
     ORDER BY score DESC, created_at ASC
     LIMIT ?
     `
   ).bind(limit).all();
 
-  return json({
+  return new Response(JSON.stringify({
     ok: true,
     week_key: wk,
     weekly: weekly.results || [],
-    alltime: alltime.results || [],
-  });
+    alltime: alltime.results || []
+  }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 }
