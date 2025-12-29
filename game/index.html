@@ -10,23 +10,14 @@
     html, body { margin: 0; height: 100%; background:#0b0f14; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     body { overscroll-behavior: none; }
     #wrap { height: 100%; display:flex; align-items:center; justify-content:center; padding: 10px; box-sizing:border-box; }
-    canvas {
-      width:min(920px, 100%);
-      height:min(700px, calc(100vh - 20px));
-      display:block;
-      border-radius:16px;
-      box-shadow: 0 12px 40px rgba(0,0,0,.55);
-      background: linear-gradient(180deg, #0b0f14 0%, #0a111a 40%, #070b10 100%);
-      touch-action: manipulation;
-    }
+    canvas { width:min(920px, 100%); height:min(700px, calc(100vh - 20px)); display:block; border-radius:16px; box-shadow: 0 12px 40px rgba(0,0,0,.55); background: linear-gradient(180deg, #0b0f14 0%, #0a111a 40%, #070b10 100%); touch-action: manipulation; }
 
-    .hud{
+    .hud {
       position: fixed; top: 12px; left: 12px; right: 12px;
       display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;
       pointer-events:none;
-      z-index: 10;
     }
-    .pill{
+    .pill {
       pointer-events:none;
       padding:10px 12px; border-radius:999px;
       background: rgba(255,255,255,0.06);
@@ -36,20 +27,16 @@
       font-size: 14px;
       display:flex; gap:10px; align-items:center;
     }
-    .muted{ color: rgba(255,255,255,0.65); }
-    .kbd{
-      padding: 2px 6px; border-radius: 8px;
-      border:1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.06);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    }
+    .muted { color: rgba(255,255,255,0.65); }
+    .kbd { padding: 2px 6px; border-radius: 8px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 
-    .ui{
+    /* UI that needs pointer events */
+    .ui {
       pointer-events:auto;
       display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; justify-content:flex-end;
     }
     input[type="text"]{
-      width: 150px;
+      width: 160px;
       padding: 10px 12px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,0.12);
@@ -70,8 +57,9 @@
     button:hover{ background: rgba(255,255,255,0.09); }
 
     .err { font-size: 12px; color: rgba(255,120,120,0.92); padding-left: 10px; }
-    .ok  { font-size: 12px; color: rgba(160,255,200,0.92); padding-left: 10px; }
+    .ok  { font-size: 12px; color: rgba(130,255,190,0.92); padding-left: 10px; }
 
+    /* Modal */
     .modalBackdrop{
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.55);
@@ -81,7 +69,6 @@
       pointer-events:auto;
       padding: 12px;
       box-sizing:border-box;
-      z-index: 20;
     }
     .modal{
       width: min(760px, calc(100vw - 24px));
@@ -97,38 +84,30 @@
     .row:last-child{ border-bottom:none; }
     .small{ font-size: 12px; color: rgba(255,255,255,0.68); }
 
-    .toast{
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 18px;
-      padding: 10px 12px;
+    .tabs{ display:flex; gap:8px; margin-top:10px; }
+    .tab{
+      pointer-events:auto;
+      padding: 8px 10px;
       border-radius: 999px;
-      background: rgba(12, 16, 22, 0.92);
       border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.92);
-      font-size: 13px;
-      display:none;
-      z-index: 30;
-      max-width: min(92vw, 760px);
-      text-align:center;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.90);
+      font-size: 12px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .tab--active{
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.18);
     }
   </style>
 </head>
 <body>
   <div class="hud">
-    <div class="pill">
-      <strong>BLT.STREAM</strong>
-      <span class="muted">tap/click or</span>
-      <span class="kbd">Space</span>
-      <span class="muted">to drop or start again</span>
-    </div>
+    <div class="pill"><strong>BLT.STREAM</strong> <span class="muted">tap/click or</span> <span class="kbd">Space</span> <span class="muted">to drop or start again</span></div>
 
     <div class="ui">
-      <div class="pill">
-        <span class="muted">Height</span> <strong id="score">0</strong>
-        <span class="muted">• Best</span> <strong id="best">0</strong>
-      </div>
+      <div class="pill"><span class="muted">Height</span> <strong id="score">0</strong> <span class="muted">• Best</span> <strong id="best">0</strong></div>
 
       <div style="display:flex; flex-direction:column; gap:6px;">
         <input id="name" type="text" maxlength="24" aria-label="Username" />
@@ -150,12 +129,16 @@
       <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
         <div>
           <div style="font-weight:700; font-size:18px;">Leaderboards</div>
-          <div class="small" id="lbHint">All-time leaderboard.</div>
+          <div class="small" id="lbHint">Loading…</div>
+          <div class="tabs">
+            <div class="tab tab--active" id="tabWeekly">Weekly</div>
+            <div class="tab" id="tabAll">All-time</div>
+          </div>
         </div>
         <button id="closeModal">Close</button>
       </div>
 
-      <div id="lbList"></div>
+      <div id="lbList" style="margin-top:10px;"></div>
 
       <div style="margin-top:12px;" class="small">
         One score per username (best score wins). If you clear browser storage, your generated name may reset.
@@ -163,18 +146,14 @@
     </div>
   </div>
 
-  <div id="toast" class="toast"></div>
-
 <script>
 (() => {
-  // Prevent iOS gesture zoom edge-cases over the game
   document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
 
   // --- Canvas setup ---
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
 
-  // Crisp rendering on high-DPI screens
   function fitCanvasToCSS(){
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
     const rect = canvas.getBoundingClientRect();
@@ -184,60 +163,50 @@
       canvas.width = w;
       canvas.height = h;
     }
-    // draw in CSS pixels
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   window.addEventListener('resize', fitCanvasToCSS, { passive: true });
-  window.addEventListener('orientationchange', () => setTimeout(fitCanvasToCSS, 250), { passive: true });
 
   const scoreEl = document.getElementById('score');
-  const bestEl  = document.getElementById('best');
+  const bestEl = document.getElementById('best');
 
   // UI
   const nameInput = document.getElementById('name');
-  const nameErr   = document.getElementById('nameErr');
-  const nameOk    = document.getElementById('nameOk');
-  const muteBtn   = document.getElementById('muteBtn');
-  const lbBtn     = document.getElementById('lbBtn');
+  const nameErr = document.getElementById('nameErr');
+  const nameOk  = document.getElementById('nameOk');
+  const muteBtn = document.getElementById('muteBtn');
+  const lbBtn = document.getElementById('lbBtn');
   const modalBackdrop = document.getElementById('modalBackdrop');
   const closeModal = document.getElementById('closeModal');
   const lbList = document.getElementById('lbList');
   const lbHint = document.getElementById('lbHint');
-  const toast = document.getElementById('toast');
-
-  function showToast(msg, ms=2600){
-    toast.textContent = msg;
-    toast.style.display = 'block';
-    clearTimeout(showToast._t);
-    showToast._t = setTimeout(() => { toast.style.display = 'none'; }, ms);
-  }
+  const tabWeekly = document.getElementById('tabWeekly');
+  const tabAll = document.getElementById('tabAll');
 
   function setNameError(msg){
+    nameOk.style.display = 'none'; nameOk.textContent = '';
     if (!msg) { nameErr.style.display = 'none'; nameErr.textContent = ''; return; }
     nameErr.textContent = msg;
     nameErr.style.display = 'block';
   }
   function setNameOk(msg){
+    nameErr.style.display = 'none'; nameErr.textContent = '';
     if (!msg) { nameOk.style.display = 'none'; nameOk.textContent = ''; return; }
     nameOk.textContent = msg;
     nameOk.style.display = 'block';
-    clearTimeout(setNameOk._t);
-    setNameOk._t = setTimeout(() => { nameOk.style.display = 'none'; nameOk.textContent=''; }, 1800);
   }
 
-  // Persistent anonymous client id (ties device to scores on your backend)
-  const clientId = localStorage.getItem('blt_client') ||
-    (crypto.randomUUID ? crypto.randomUUID() : `c_${Math.random().toString(16).slice(2)}${Date.now()}`);
-  localStorage.setItem('blt_client', clientId);
+  // --- Shared leaderboard (Cloudflare Pages Functions) ---
+  const API_BASE = ""; // same-origin
+  const ENDPOINT_SCORE = API_BASE + "/api/score";
+  const ENDPOINT_LEADERBOARD = API_BASE + "/api/leaderboard";
 
-  // ========= LEADERBOARD MODE =========
-  // Turn this ON once your Cloudflare Pages Functions are installed:
-  //   /api/check       (GET ?name=...)
-  //   /api/submit      (POST { name, score, clientId })
-  //   /api/leaderboard (GET)
-  const USE_BACKEND = true; // <- set false if you want local-only for debugging
+  // Stable per-device player_id
+  const playerId = localStorage.getItem('blt_player_id') ||
+    (crypto.randomUUID ? crypto.randomUUID() : `p_${Math.random().toString(16).slice(2)}${Date.now()}`);
+  localStorage.setItem('blt_player_id', playerId);
 
-  // --- Sound (subtle) ---
+  // --- Sound ---
   let audioEnabled = (localStorage.getItem('blt_sound') ?? 'on') === 'on';
   muteBtn.textContent = audioEnabled ? 'Sound: On' : 'Sound: Off';
 
@@ -282,6 +251,7 @@
     o.start(t0);
     o.stop(t0 + 0.12);
   }
+
   muteBtn.addEventListener('click', () => {
     audioEnabled = !audioEnabled;
     localStorage.setItem('blt_sound', audioEnabled ? 'on' : 'off');
@@ -289,18 +259,20 @@
     if (audioEnabled) { ensureAudio(); beep({freq:520, dur:0.03, gain:0.02}); }
   });
 
-  // --- Game constants (logical coordinates) ---
+  // --- Game constants ---
   const LOGICAL_W = 920;
   const LOGICAL_H = 700;
 
-  // Keep playfield stable by scaling drawing into whatever canvas size we have.
+  let W = LOGICAL_W;
+  let H = LOGICAL_H;
+
   function beginScene(){
     const rect = canvas.getBoundingClientRect();
-    const W = rect.width;
-    const H = rect.height;
+    W = rect.width;
+    H = rect.height;
     const sx = W / LOGICAL_W;
     const sy = H / LOGICAL_H;
-    const s  = Math.min(sx, sy);
+    const s = Math.min(sx, sy);
     const ox = (W - LOGICAL_W*s) / 2;
     const oy = (H - LOGICAL_H*s) / 2;
     ctx.save();
@@ -310,17 +282,16 @@
   function endScene(){ ctx.restore(); }
 
   const GROUND_Y = LOGICAL_H - 70;
-  const SLAB_H   = 26;
-  const GRAVITY  = 2400;
+  const SLAB_H = 26;
+  const GRAVITY = 2400;
 
   const BASE_SPEED = 220;
   const SPEED_GAIN = 9.5;
-  const MAX_SPEED  = 980;
-
+  const MAX_SPEED = 980;
   const ERRATIC_START_AT = 8;
-  const ERRATIC_GAIN     = 5.5;
+  const ERRATIC_GAIN = 5.5;
 
-  const CAM_SMOOTH   = 0.16;
+  const CAM_SMOOTH = 0.16;
   const VIEW_TARGET_Y = 170;
 
   // --- State ---
@@ -328,7 +299,6 @@
   let current = null;
   let cam = 0;
   let score = 0;
-
   let best = Number(localStorage.getItem('blt_best') || '0');
   bestEl.textContent = best;
 
@@ -343,214 +313,112 @@
     return `${a[Math.floor(Math.random()*a.length)]}${b[Math.floor(Math.random()*b.length)]}${Math.floor(rand(10,99))}`;
   }
 
-  // VERY simple profanity filter (client-side). Still enforce server-side too.
-  const BAD = [
-    'fuck','shit','bitch','cunt','nigger','faggot','asshole','dick','pussy','whore','slut'
-  ];
-  function looksProfane(name){
-    const s = (name || '').toLowerCase().replace(/[^a-z0-9]/g,'');
-    return BAD.some(w => s.includes(w));
-  }
-
-  function normalizeName(v){
-    v = (v || '').toString().trim().slice(0, 24);
-    // prevent weird whitespace
-    v = v.replace(/\s+/g,' ');
-    return v;
-  }
-
   const savedName = localStorage.getItem('blt_name') || genName();
   nameInput.value = savedName;
 
-  // --- Local leaderboard fallback (one best score per name) ---
-  function lbGet(){ return JSON.parse(localStorage.getItem('blt_lb') || '{"all":[]}'); }
-  function lbSet(v){ localStorage.setItem('blt_lb', JSON.stringify(v)); }
-
-  function recordLocalScore(name, s){
-    const lb = lbGet();
-    lb.all = lb.all || [];
-
-    const idx = lb.all.findIndex(e => e.name === name);
-    if (idx >= 0) {
-      if (s > lb.all[idx].score) lb.all[idx] = { name, score: s, t: Date.now() };
-    } else {
-      lb.all.push({ name, score: s, t: Date.now() });
-    }
-    lb.all = lb.all.sort((x,y)=> y.score - x.score || x.t - y.t).slice(0, 100);
-    lbSet(lb);
-
-    const rank = lb.all.findIndex(e => e.name === name) + 1;
-    return { rank, total: lb.all.length };
+  function normalizeName(v){
+    v = String(v || '').trim().replace(/\s+/g, ' ');
+    if (v.length > 24) v = v.slice(0,24);
+    return v;
   }
 
-  function getLocalLeaderboard(){
-    const lb = lbGet();
-    return (lb.all || []);
-  }
+  nameInput.addEventListener('change', () => {
+    let v = normalizeName(nameInput.value);
+    if (!v) v = genName();
+    nameInput.value = v;
+    localStorage.setItem('blt_name', v);
+    setNameError('');
+    setNameOk('');
+  });
 
-  // --- Backend calls (same-origin Pages Functions) ---
-  async function apiGET(path){
-    const res = await fetch(path, { method:'GET' });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Request failed');
-    return data;
-  }
-  async function apiPOST(path, body){
-    const res = await fetch(path, {
-      method:'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify(body)
+  // --- Leaderboard API ---
+  async function submitScore(username, score){
+    const res = await fetch(ENDPOINT_SCORE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, score, player_id: playerId })
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const msg = data.message || data.error || 'Request failed';
+      const msg = data?.error || "Submit failed";
       const err = new Error(msg);
       err.status = res.status;
-      err.data = data;
       throw err;
     }
     return data;
   }
 
-  async function backendCheckName(name){
-    // expects: { taken: true/false }
-    return await apiGET(`/api/check?name=${encodeURIComponent(name)}`);
+  async function fetchLeaderboards(limit = 25){
+    const res = await fetch(`${ENDPOINT_LEADERBOARD}?limit=${encodeURIComponent(limit)}`, { method: "GET" });
+    if (!res.ok) throw new Error("Leaderboard fetch failed");
+    return await res.json();
   }
 
-  async function backendSubmitScore(name, score){
-    // recommended response: { ok:true, rank, total, bestScore }
-    return await apiPOST('/api/submit', { name, score, clientId });
-  }
+  // --- Modal render ---
+  let lbMode = "weekly"; // or "all"
+  let cachedLB = null;
 
-  async function backendGetLeaderboard(){
-    // expects: { entries: [{name, score}], updatedAt }
-    return await apiGET('/api/leaderboard');
-  }
-
-  // Name change handler
-  nameInput.addEventListener('change', async () => {
-    setNameError('');
-    setNameOk('');
-
-    let v = normalizeName(nameInput.value);
-    if (!v) v = genName();
-
-    if (looksProfane(v)) {
-      setNameError('Please choose a different username.');
-      return;
-    }
-
-    // Backend uniqueness check (best-effort; final authority is submit)
-    if (USE_BACKEND) {
-      try{
-        const r = await backendCheckName(v);
-        if (r.taken) { setNameError('Username not available'); return; }
-      } catch {
-        // If check fails, we still allow local save; submit will enforce.
-      }
-    }
-
-    nameInput.value = v;
-    localStorage.setItem('blt_name', v);
-    setNameOk('Saved');
-  });
-
-  // --- Leaderboard UI ---
-  async function renderLeaderboard(){
-    lbList.innerHTML = '';
-    let entries = [];
-    try {
-      if (USE_BACKEND) {
-        lbHint.textContent = 'All-time leaderboard (shared).';
-        const data = await backendGetLeaderboard();
-        entries = (data.entries || []).map(r => ({ name: r.name, score: r.score }));
-      } else {
-        lbHint.textContent = 'All-time leaderboard (local only).';
-        entries = getLocalLeaderboard().map(r => ({ name: r.name, score: r.score }));
-      }
-    } catch (e) {
-      // fallback
-      lbHint.textContent = 'Leaderboard error — showing local fallback.';
-      entries = getLocalLeaderboard().map(r => ({ name: r.name, score: r.score }));
-    }
-
-    if (!entries.length) {
-      lbList.innerHTML = `<div class="small" style="padding:12px 4px;">No scores yet. Play a round!</div>`;
-      return;
-    }
-
-    const me = normalizeName(nameInput.value);
-    const top = entries.slice(0, 50);
-
-    top.forEach((r, i) => {
-      const row = document.createElement('div');
-      row.className = 'row';
-
-      const left = document.createElement('div');
-      const hi = r.name === me ? 'color:rgba(255,255,255,0.98)' : '';
-      left.innerHTML = `<strong>#${i+1}</strong> <span style="margin-left:8px;${hi}">${escapeHtml(r.name)}</span>`;
-
-      const right = document.createElement('div');
-      right.innerHTML = `<strong>${r.score}</strong>`;
-
-      row.appendChild(left);
-      row.appendChild(right);
-      lbList.appendChild(row);
-    });
+  function setTabUI(){
+    tabWeekly.classList.toggle('tab--active', lbMode === 'weekly');
+    tabAll.classList.toggle('tab--active', lbMode === 'all');
   }
 
   function escapeHtml(s){
     return (s||'').replace(/[&<>"]+/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c));
   }
 
-  lbBtn.addEventListener('click', async () => {
+  function renderList(entries){
+    lbList.innerHTML = '';
+    if (!entries || !entries.length) {
+      lbList.innerHTML = `<div class="small" style="padding:12px 4px;">No scores yet. Play a round!</div>`;
+      return;
+    }
+    const me = normalizeName(nameInput.value);
+    entries.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const left = document.createElement('div');
+      const isMe = (normalizeName(r.username) === me);
+      left.innerHTML = `<strong>#${i+1}</strong> <span style="margin-left:8px;${isMe?'color:rgba(255,255,255,0.98)':''}">${escapeHtml(r.username)}</span>`;
+      const right = document.createElement('div');
+      right.innerHTML = `<strong>${r.score}</strong>`;
+      row.appendChild(left);
+      row.appendChild(right);
+      lbList.appendChild(row);
+    });
+  }
+
+  async function openLeaderboard(){
     modalBackdrop.style.display = 'flex';
-    await renderLeaderboard();
-  });
+    lbHint.textContent = 'Loading…';
+    lbList.innerHTML = '';
+    setTabUI();
+
+    try {
+      cachedLB = await fetchLeaderboards(50);
+      lbHint.textContent = `Weekly resets Monday 00:00 UTC • Week key: ${cachedLB.week_key}`;
+      const list = (lbMode === 'weekly') ? cachedLB.weekly : cachedLB.alltime;
+      renderList(list);
+    } catch {
+      lbHint.textContent = 'Error loading leaderboards.';
+      renderList([]);
+    }
+  }
+
+  lbBtn.addEventListener('click', openLeaderboard);
   closeModal.addEventListener('click', () => { modalBackdrop.style.display = 'none'; });
   modalBackdrop.addEventListener('click', (e) => {
     if (e.target === modalBackdrop) modalBackdrop.style.display = 'none';
   });
 
-  // --- Debris + fireworks ---
-  const debris = [];
-  let celebrateUntil = 0;
-  const fireworks = []; // {x,y,vx,vy,life,color}
-
-  function launchFireworks(y){
-    const colors = ['rgba(120,190,255,','rgba(80,220,200,','rgba(180,140,255,','rgba(255,180,120,'];
-    for (let b = 0; b < 8; b++) {
-      const cx = rand(120, LOGICAL_W-120);
-      const cy = y - rand(40, 140);
-      const base = colors[Math.floor(Math.random()*colors.length)];
-      for (let i = 0; i < 22; i++) {
-        const a = rand(0, Math.PI*2);
-        const sp = rand(140, 380);
-        fireworks.push({
-          x: cx, y: cy,
-          vx: Math.cos(a)*sp,
-          vy: Math.sin(a)*sp - rand(80, 180),
-          life: rand(0.7, 1.2),
-          color: base
-        });
-      }
-    }
-  }
-
-  function spawnDebris(cur, ov) {
-    const leftOverhang = Math.max(0, ov.lo - cur.x);
-    if (leftOverhang > 2) {
-      debris.push({ x: cur.x + leftOverhang/2, y: cur.y + cur.h/2, w: leftOverhang, h: cur.h,
-        vx: -rand(40, 140), vy: -rand(220, 520), life: 1.0
-      });
-    }
-    const rightOverhang = Math.max(0, (cur.x + cur.w) - ov.hi);
-    if (rightOverhang > 2) {
-      debris.push({ x: ov.hi + rightOverhang/2, y: cur.y + cur.h/2, w: rightOverhang, h: cur.h,
-        vx: rand(40, 140), vy: -rand(220, 520), life: 1.0
-      });
-    }
-  }
+  tabWeekly.addEventListener('click', () => {
+    lbMode = 'weekly'; setTabUI();
+    if (cachedLB) renderList(cachedLB.weekly);
+  });
+  tabAll.addEventListener('click', () => {
+    lbMode = 'all'; setTabUI();
+    if (cachedLB) renderList(cachedLB.alltime);
+  });
 
   // --- Game ---
   function reset() {
@@ -568,25 +436,18 @@
     spawnNextSlab();
   }
 
-  function speedForScore(s){
-    // after 20: slow down by half, then increase same rate
-    const baseAt20 = BASE_SPEED + SPEED_GAIN * 20;
-    if (s < 20) return BASE_SPEED + SPEED_GAIN * s;
-    return (baseAt20 * 0.5) + SPEED_GAIN * (s - 20);
-  }
-
   function spawnNextSlab() {
     const top = stack[stack.length - 1];
-
-    // Width fix: next slab matches the resulting width directly beneath it
     const w = top.w;
-
     const dir = Math.random() < 0.5 ? -1 : 1;
     const startX = dir === 1 ? -w - 40 : LOGICAL_W + 40;
-
     const y = top.y - SLAB_H;
 
-    const base = speedForScore(score);
+    const baseAt20 = BASE_SPEED + SPEED_GAIN * 20;
+    const base = (score < 20)
+      ? (BASE_SPEED + SPEED_GAIN * score)
+      : (baseAt20 * 0.5 + SPEED_GAIN * (score - 20));
+
     current = {
       x: startX, y, w, h: SLAB_H,
       level: score + 1,
@@ -616,40 +477,6 @@
     }
   }
 
-  function intersect1D(a0, a1, b0, b1) {
-    const lo = Math.max(a0, b0);
-    const hi = Math.min(a1, b1);
-    return hi > lo ? { lo, hi, w: hi - lo } : null;
-  }
-
-  async function submitScoreAndShowPlacement(name, s){
-    // Always auto-submit
-    if (!USE_BACKEND) {
-      const { rank, total } = recordLocalScore(name, s);
-      showToast(`Saved. You placed #${rank} of ${total}.`);
-      return;
-    }
-
-    try{
-      const r = await backendSubmitScore(name, s);
-      if (r && typeof r.rank === 'number' && typeof r.total === 'number') {
-        showToast(`Saved. You placed #${r.rank} of ${r.total}.`);
-      } else {
-        showToast('Saved.');
-      }
-    } catch (e){
-      if (e && e.status === 409) {
-        // username taken
-        setNameError('Username not available');
-        showToast('Username not available. Please choose another.');
-      } else if (e && e.status === 400) {
-        showToast('Could not save score.');
-      } else {
-        showToast('Could not save score right now.');
-      }
-    }
-  }
-
   async function gameOver() {
     current.state = 'gameover';
     thud(0.8);
@@ -660,22 +487,66 @@
       bestEl.textContent = best;
     }
 
-    let name = normalizeName(nameInput.value);
-    if (!name) name = genName();
+    let username = normalizeName(nameInput.value);
+    if (!username) username = genName();
+    nameInput.value = username;
+    localStorage.setItem('blt_name', username);
 
-    if (looksProfane(name)) {
-      // Force a new generated name if they typed something not allowed
-      name = genName();
-      nameInput.value = name;
-      localStorage.setItem('blt_name', name);
-      setNameError('Please choose a different username.');
-      // Still submit under generated name
-    } else {
-      nameInput.value = name;
-      localStorage.setItem('blt_name', name);
+    // Auto-submit score to shared leaderboard
+    try {
+      const data = await submitScore(username, score);
+
+      // Placement feedback
+      const wk = data.rank_weekly ? `Weekly #${data.rank_weekly}` : null;
+      const at = data.rank_alltime ? `All-time #${data.rank_alltime}` : null;
+      const msg = [wk, at].filter(Boolean).join(' • ');
+      if (msg) setNameOk(msg);
+      else setNameOk('Score submitted.');
+
+      cachedLB = null; // force refresh next time modal opens
+    } catch (e) {
+      if (e?.status === 409) {
+        setNameError('Username not available');
+      } else {
+        setNameError(e?.message || 'Could not submit score');
+      }
     }
+  }
 
-    await submitScoreAndShowPlacement(name, score);
+  function intersect1D(a0, a1, b0, b1) {
+    const lo = Math.max(a0, b0);
+    const hi = Math.min(a1, b1);
+    return hi > lo ? { lo, hi, w: hi - lo } : null;
+  }
+
+  const debris = [];
+
+  // Celebration (Level 20)
+  let celebrateUntil = 0;
+  const fireworks = [];
+  function launchFireworks(y){
+    const colors = ['rgba(120,190,255,','rgba(80,220,200,','rgba(180,140,255,','rgba(255,180,120,'];
+    for (let b = 0; b < 8; b++) {
+      const cx = rand(120, LOGICAL_W-120);
+      const cy = y - rand(40, 140);
+      const base = colors[Math.floor(Math.random()*colors.length)];
+      for (let i = 0; i < 22; i++) {
+        const a = rand(0, Math.PI*2);
+        const sp = rand(140, 380);
+        fireworks.push({ x: cx, y: cy, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - rand(80, 180), life: rand(0.7, 1.2), color: base });
+      }
+    }
+  }
+
+  function spawnDebris(cur, ov) {
+    const leftOverhang = Math.max(0, ov.lo - cur.x);
+    if (leftOverhang > 2) {
+      debris.push({ x: cur.x + leftOverhang/2, y: cur.y + cur.h/2, w: leftOverhang, h: cur.h, vx: -rand(40, 140), vy: -rand(220, 520), life: 1.0 });
+    }
+    const rightOverhang = Math.max(0, (cur.x + cur.w) - ov.hi);
+    if (rightOverhang > 2) {
+      debris.push({ x: ov.hi + rightOverhang/2, y: cur.y + cur.h/2, w: rightOverhang, h: cur.h, vx: rand(40, 140), vy: -rand(220, 520), life: 1.0 });
+    }
   }
 
   function resolveLanding() {
@@ -686,13 +557,12 @@
 
     spawnDebris(current, ov);
 
-    const newSlab = { x: ov.lo, y: prev.y - SLAB_H, w: ov.w, h: SLAB_H, level: score + 1 };
+    const newSlab = { x: ov.lo, y: prev.y - SLAB_H, w: ov.w, h: SLAB_H };
     stack.push(newSlab);
 
     score++;
     scoreEl.textContent = score;
 
-    // Level 20 celebration
     if (score === 20) {
       celebrateUntil = performance.now() + 1600;
       launchFireworks(newSlab.y);
@@ -706,14 +576,15 @@
     spawnNextSlab();
   }
 
-  // --- Input ---
+  // Input
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Space') { e.preventDefault(); drop(); }
+    if (e.key.toLowerCase() === 'r') reset();
   }, { passive: false });
 
   canvas.addEventListener('pointerdown', () => drop(), { passive: true });
 
-  // --- Update + Render ---
+  // Update + Render
   let last = performance.now();
 
   function update(dt) {
@@ -742,8 +613,11 @@
     if (current.state === 'moving') {
       current.x += current.vx * dt;
 
-      const base = speedForScore(score);
-      const max  = clamp(base + 420 + score*8, 300, MAX_SPEED);
+      const baseAt20 = BASE_SPEED + SPEED_GAIN * 20;
+      const base = (score < 20)
+        ? (BASE_SPEED + SPEED_GAIN * score)
+        : (baseAt20 * 0.5 + SPEED_GAIN * (score - 20));
+      const max = clamp(base + 420 + score*8, 300, MAX_SPEED);
 
       const sinBias = Math.sin(current.t * current.jitterFreq + current.jitterPhase) * current.jitterStrength;
       const walk = rand(-1, 1) * current.jitterStrength * 0.9;
@@ -759,7 +633,6 @@
         current.x = LOGICAL_W + 80;
         current.vx = -Math.abs(current.vx) * rand(0.85, 1.08);
       }
-
     } else if (current.state === 'dropping') {
       current.vy += GRAVITY * dt;
       current.y += current.vy * dt;
@@ -782,91 +655,68 @@
     ctx.clearRect(0, 0, rect.width, rect.height);
 
     beginScene();
-
     ctx.save();
     ctx.translate(0, cam);
 
     drawGrid();
 
-    // ground line
     ctx.fillStyle = 'rgba(255,255,255,0.05)';
     ctx.fillRect(0, GROUND_Y + SLAB_H, LOGICAL_W, 6);
 
-    // stack
     for (let i = 0; i < stack.length; i++) {
       const s = stack[i];
       drawSlab(s.x, s.y, s.w, s.h, 0.14 + i*0.001, s.level || 0);
     }
 
-    // debris
     for (const d of debris) {
       ctx.globalAlpha = clamp(d.life, 0, 1);
-      drawSlab(d.x - d.w/2, d.y - d.h/2, d.w, d.h, 0.12, 0);
+      drawSlab(d.x - d.w/2, d.y - d.h/2, d.w, d.h, 0.12);
       ctx.globalAlpha = 1;
     }
 
-    // current
     if (current && current.state !== 'gameover') {
       drawSlab(current.x, current.y, current.w, current.h, 0.24, current.level || 0);
     }
 
-    // fireworks particles (world space)
-    for (const f of fireworks) {
-      const a = clamp(f.life, 0, 1);
-      ctx.fillStyle = `${f.color}${a})`;
-      ctx.fillRect(f.x, f.y, 2.2, 2.2);
-    }
-
-    // celebration banner (screen space)
     const nowMs = performance.now();
     if (nowMs < celebrateUntil) {
       ctx.save();
       ctx.setTransform(1,0,0,1,0,0);
-
+      const rect2 = canvas.getBoundingClientRect();
       const t = 1 - ((celebrateUntil - nowMs) / 1600);
       const alpha = t < 0.15 ? (t/0.15) : (t > 0.85 ? ((1-t)/0.15) : 1);
-
       ctx.globalAlpha = clamp(alpha, 0, 1);
       ctx.fillStyle = 'rgba(10,16,24,0.55)';
-
-      const w = Math.min(520, rect.width - 24);
+      const w = Math.min(520, rect2.width - 24);
       const h = 64;
-      const x = (rect.width - w)/2;
+      const x = (rect2.width - w)/2;
       const y = 96;
-
       ctx.fillRect(x, y, w, h);
       ctx.strokeStyle = 'rgba(255,255,255,0.14)';
       ctx.strokeRect(x, y, w, h);
-
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       ctx.textAlign = 'center';
       ctx.font = '700 22px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-      ctx.fillText('You Reached Level 20!', rect.width/2, y + 40);
-
+      ctx.fillText('You Reached Level 20!', rect2.width/2, y + 40);
       ctx.restore();
     }
 
-    // gameover overlay (screen space)
     if (current && current.state === 'gameover') {
       ctx.save();
       ctx.setTransform(1,0,0,1,0,0);
-
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(0, 0, rect.width, rect.height);
-
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       ctx.textAlign = 'center';
       ctx.font = '700 42px system-ui, -apple-system, Segoe UI, Roboto, Arial';
       ctx.fillText('Out of Tolerance', rect.width/2, rect.height/2 - 10);
-
       ctx.font = '500 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
       ctx.fillStyle = 'rgba(255,255,255,0.72)';
       ctx.fillText('Tap/click or press Space to try again', rect.width/2, rect.height/2 + 26);
-
       ctx.restore();
     }
 
-    ctx.restore(); // cam translate
+    ctx.restore();
     endScene();
   }
 
@@ -879,7 +729,7 @@
     const y0 = -cam;
     const y1 = -cam + LOGICAL_H;
     const startY = Math.floor((y0 - 200) / step) * step;
-    const endY   = Math.ceil((y1 + 200) / step) * step;
+    const endY = Math.ceil((y1 + 200) / step) * step;
 
     for (let y = startY; y <= endY; y += step) {
       ctx.beginPath();
@@ -887,19 +737,19 @@
       ctx.lineTo(LOGICAL_W, y);
       ctx.stroke();
     }
+
     for (let x = 0; x <= LOGICAL_W; x += step) {
       ctx.beginPath();
       ctx.moveTo(x, y0 - 200);
       ctx.lineTo(x, y1 + 200);
       ctx.stroke();
     }
+
     ctx.restore();
   }
 
-  // Floors: square edges (no windows). Level 21+ uses blue gradients.
-  function drawSlab(x, y, w, h, alpha=0.2, level=0) {
+  function drawSlab(x, y, w, h, alpha = 0.2, level = 0) {
     ctx.save();
-
     if (level >= 21) {
       const g = ctx.createLinearGradient(x, y, x, y + h);
       g.addColorStop(0, `rgba(70, 140, 220, ${alpha})`);
@@ -909,11 +759,9 @@
       ctx.fillStyle = `rgba(173, 196, 220, ${alpha})`;
     }
     ctx.fillRect(x, y, w, h);
-
     ctx.strokeStyle = 'rgba(255,255,255,0.13)';
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
-
     ctx.restore();
   }
 
@@ -925,7 +773,6 @@
     requestAnimationFrame(loop);
   }
 
-  // Start
   fitCanvasToCSS();
   reset();
   requestAnimationFrame(loop);
