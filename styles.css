@@ -127,22 +127,15 @@ main{ padding-top: 64px; }
    PROJECT CARDS — FIXED
    ========================= */
 
+/* Projects cards — taller */
 .projectsGrid > * {
-  min-height: 380px;          /* ~33% taller than before */
+  min-height: 380px;          /* ~33% taller */
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  padding-bottom: 28px;
 }
 
-/* Keep text stacked normally */
-.projectsGrid h3,
-.projectsGrid p {
-  margin-bottom: 8px;
-}
-
-/* SMALL button style (original size feel) */
-.btn--small {
+/* Small button (like the early version) */
+.btn--small{
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -151,13 +144,12 @@ main{ padding-top: 64px; }
   letter-spacing: 0.12em;
   text-transform: uppercase;
   border-radius: 999px;
-  width: auto;
-  max-width: fit-content;
+  width: auto;                /* prevents giant width */
 }
 
-/* Place button under description */
-.projectsGrid .btn {
-  margin-top: 14px;     /* directly under "Building stacker game" */
+/* spacing under the description */
+.projectsGrid .btn{
+  margin-top: 12px;
   align-self: flex-start;
 }
 
