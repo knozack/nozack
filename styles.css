@@ -124,33 +124,40 @@ main{ padding-top: 64px; }
 .card__cta{ margin-top: 12px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: rgba(10,10,10,.78); }
 
 /* =========================
-   PROJECT CARDS — FIXED
+   PROJECT CARDS — FIXED (v2)
    ========================= */
 
-/* Projects cards — taller */
-.projectsGrid > * {
-  min-height: 380px;          /* ~33% taller */
+/* Make the project cards taller */
+.projectsGrid > *{
+  min-height: 380px;           /* ~33% taller */
   display: flex;
   flex-direction: column;
+  justify-content: flex-start; /* keep content at top */
 }
 
-/* Small button (like the early version) */
-.btn--small{
-  display: inline-flex;
+/* Any button/link inside a project card should NOT stretch or become a giant pill */
+.projectsGrid a.btn{
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
-  padding: 8px 16px;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+
+  width: fit-content !important;   /* prevents full-width */
+  max-width: 100%;
+  padding: 8px 16px !important;    /* small height */
+  font-size: 11px !important;
+  line-height: 1 !important;
+
   border-radius: 999px;
-  width: auto;                /* prevents giant width */
+  margin-top: 12px;                /* directly under description */
+  align-self: flex-start;          /* left aligned */
 }
 
-/* spacing under the description */
-.projectsGrid .btn{
-  margin-top: 12px;
-  align-self: flex-start;
+/* Optional: if you are using btn--small, keep it consistent */
+.btn--small{
+  padding: 8px 16px !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  width: fit-content !important;
 }
 
 /* Contact */
