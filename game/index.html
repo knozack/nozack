@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f14" />
+  <title>BLT.STREAM</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { margin: 0; height: 100%; background:#0b0f14; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { overscroll-behavior: none; }
+    #wrap { height: 100%; display:flex; align-items:center; justify-content:center; padding: 10px; box-sizing:border-box; }
+    canvas { width:min(920px, 100%); height:min(700px, calc(100vh - 20px)); display:block; border-radius:16px; box-shadow: 0 12px 40px rgba(0,0,0,.55); background: linear-gradient(180deg, #0b0f14 0%, #0a111a 40%, #070b10 100%); touch-action: manipulation; }
+
+    .hud {
+      position: fixed; top: 12px; left: 12px; right: 12px;
+      display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;
+      pointer-events:none;
+    }
+    .pill {
+      pointer-events:none;
+      padding:10px 12px; border-radius:999px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(10px);
+      color: rgba(255,255,255,0.92);
+      font-size: 14px;
+      display:flex; gap:10px; align-items:center;
+    }
+    .muted { color: rgba(255,255,255,0.65); }
+    .kbd { padding: 2px 6px; border-radius: 8px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+    /* UI that needs pointer events */
+    .ui {
+      pointer-events:auto;
+      display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+    }
+    input[type="text"]{
+      width: 135px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.92);
+      outline: none;
+    }
+    button{
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.92);
+      cursor: pointer;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:hover{ background: rgba(255,255,255,0.09); }
+
+    .err { font-size: 12px; color: rgba(255,120,120,0.92); padding-left: 10px; }
+
+    /* Modal */
+    .modalBackdrop{
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.55);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      pointer-events:auto;
+      padding: 12px;
+      box-sizing:border-box;
+    }
+    .modal{
+      width: min(760px, calc(100vw - 24px));
+      max-height: min(560px, calc(100vh - 24px));
+      overflow:auto;
+      background: rgba(12, 16, 22, 0.92);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 18px;
+      box-shadow: 0 18px 70px rgba(0,0,0,0.6);
+      padding: 16px;
+    }
+    .row{ display:flex; justify-content:space-between; gap:10px; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .row:last-child{ border-bottom:none; }
+    .small{ font-size: 12px; color: rgba(255,255,255,0.68); }
+  </style>
+</head>
+<body>
+  <div class="hud">
+    <div class="pill"><strong>BLT.STREAM</strong> <span class="muted">tap/click or</span> <span class="kbd">Space</span> <span class="muted">to drop or start again</span></div>
+
+    <div class="ui">
+      <div class="pill"><span class="muted">Height</span> <strong id="score">0</strong> <span class="muted">• Best</span> <strong id="best">0</strong></div>
+
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <input id="name" type="text" maxlength="24" aria-label="Username" />
+        <div id="nameErr" class="err" style="display:none;"></div>
+      </div>
+      <button id="muteBtn" title="Sound on/off">Sound: On</button>
+      <button id="lbBtn" title="Leaderboards">Leaderboards</button>
+    </div>
+  </div>
+
+  <div id="wrap">
+    <canvas id="c" width="920" height="700"></canvas>
+  </div>
+
+  <div class="modalBackdrop" id="modalBackdrop" role="dialog" aria-modal="true">
+    <div class="modal">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div>
+          <div style="font-weight:700; font-size:18px;">Leaderboards</div>
+          <div class="small" id="lbHint">All-time leaderboard (local only).</div>
+        </div>
+        <button id="closeModal">Close</button>
+      </div>
+
+      <div id="lbList"></div>
+
+      <div style="margin-top:12px;" class="small">
+        One score per username (best score wins).
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // Prevent mobile double-tap zoom on the game area
+  document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+
+  // --- Canvas setup ---
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  // Crisp rendering on high-DPI screens
+  function fitCanvasToCSS(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.round(rect.width * dpr);
+    const h = Math.round(rect.height * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in CSS pixels
+  }
+  window.addEventListener('resize', fitCanvasToCSS, { passive: true });
+
+  const scoreEl = document.getElementById('score');
+  const bestEl = document.getElementById('best');
+
+  // UI
+  const nameInput = document.getElementById('name');
+  const nameErr = document.getElementById('nameErr');
+const muteBtn = document.getElementById('muteBtn');
+  const lbBtn = document.getElementById('lbBtn');
+  const modalBackdrop = document.getElementById('modalBackdrop');
+  const closeModal = document.getElementById('closeModal');
+  const lbList = document.getElementById('lbList');
+  const lbHint = document.getElementById('lbHint');
+
+  function setNameError(msg){
+    if (!msg) { nameErr.style.display = 'none'; nameErr.textContent = ''; return; }
+    nameErr.textContent = msg;
+    nameErr.style.display = 'block';
+  }
+
+  // Persistent anonymous client id (for future backend uniqueness)
+  const clientId = localStorage.getItem('blt_client') ||
+    (crypto.randomUUID ? crypto.randomUUID() : `c_${Math.random().toString(16).slice(2)}${Date.now()}`);
+  localStorage.setItem('blt_client', clientId);
+
+  // --- OPTIONAL: Cloudflare Worker backend (shared leaderboard) ---
+  const USE_BACKEND = false;
+  const WORKER_ENDPOINT = ''; // e.g. https://your-worker.workers.dev
+
+  // --- Sound (subtle) ---
+  let audioEnabled = (localStorage.getItem('blt_sound') ?? 'on') === 'on';
+  muteBtn.textContent = audioEnabled ? 'Sound: On' : 'Sound: Off';
+
+  let audioCtx = null;
+  function ensureAudio(){
+    if (!audioEnabled) return false;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+    return true;
+  }
+  function beep({freq=440, dur=0.04, type='sine', gain=0.03, attack=0.002, release=0.03} = {}){
+    if (!ensureAudio()) return;
+    const t0 = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t0);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(gain, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + release);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t0);
+    o.stop(t0 + dur + release + 0.02);
+  }
+  function thud(intensity=1){
+    // low, short, soft thud
+    const f = 110 + Math.random()*18;
+    beep({freq:f, dur:0.035, type:'sine', gain:0.035*intensity});
+    beep({freq:f*0.5, dur:0.05, type:'triangle', gain:0.02*intensity});
+  }
+  function whoosh(){
+    // airy movement cue (very subtle)
+    if (!ensureAudio()) return;
+    const t0 = audioCtx.currentTime;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(260 + Math.random()*80, t0);
+    o.frequency.exponentialRampToValueAtTime(120, t0 + 0.08);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.015, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.10);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(t0);
+    o.stop(t0 + 0.12);
+  }
+
+  muteBtn.addEventListener('click', () => {
+    audioEnabled = !audioEnabled;
+    localStorage.setItem('blt_sound', audioEnabled ? 'on' : 'off');
+    muteBtn.textContent = audioEnabled ? 'Sound: On' : 'Sound: Off';
+    if (audioEnabled) { ensureAudio(); beep({freq:520, dur:0.03, gain:0.02}); }
+  });
+
+  // --- Game constants (in CSS pixels) ---
+  // We draw in CSS pixels due to ctx.setTransform(dpr,0,0,dpr,0,0).
+  const LOGICAL_W = 920;
+  const LOGICAL_H = 700;
+
+  let W = LOGICAL_W;
+  let H = LOGICAL_H;
+
+  // Keep playfield stable even when canvas size changes by scaling drawing.
+  function beginScene(){
+    const rect = canvas.getBoundingClientRect();
+    W = rect.width;
+    H = rect.height;
+    const sx = W / LOGICAL_W;
+    const sy = H / LOGICAL_H;
+    const s = Math.min(sx, sy);
+    const ox = (W - LOGICAL_W*s) / 2;
+    const oy = (H - LOGICAL_H*s) / 2;
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(s, s);
+  }
+  function endScene(){ ctx.restore(); }
+
+  // Physics uses logical coordinates
+  const GROUND_Y = LOGICAL_H - 70;
+  const SLAB_H = 26;
+  const GRAVITY = 2400;
+
+  const BASE_SPEED = 220;
+  const SPEED_GAIN = 9.5;
+  const MAX_SPEED = 980;
+  const ERRATIC_START_AT = 8;
+  const ERRATIC_GAIN = 5.5;
+  const MIN_SLAB_W = 56;
+
+  const CAM_SMOOTH = 0.16;
+  const VIEW_TARGET_Y = 170;
+
+  // --- State ---
+  let stack = [];
+  let current = null;
+  let cam = 0;
+  let score = 0;
+  let best = Number(localStorage.getItem('nozack_best') || '0');
+  bestEl.textContent = best;
+
+  // --- Utils ---
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // --- Username ---
+  function genName(){
+    const a = ['Steel','Glass','Concrete','Plumb','Beam','Bolt','Crane','Facade','Atrium','Lintel','Girder','Sill','Panel','Truss'];
+    const b = ['Fox','Hawk','Otter','Lynx','Heron','Wolf','Koi','Raven','Cobra','Mantis','Puma','Orca'];
+    return `${a[Math.floor(Math.random()*a.length)]}${b[Math.floor(Math.random()*b.length)]}${Math.floor(rand(10,99))}`;
+  }
+  const savedName = localStorage.getItem('nozack_name') || genName();
+  nameInput.value = savedName;
+
+  // Local leaderboard (one entry per name)
+  function lbGet(){ return JSON.parse(localStorage.getItem('nozack_lb') || '{"all":[]}'); }
+  function lbSet(v){ localStorage.setItem('nozack_lb', JSON.stringify(v)); }
+
+  function isNameTakenLocal(name){
+    const lb = lbGet();
+    const e = (lb.all || []).find(x => x.name === name);
+    return !!(e && e.clientId && e.clientId !== clientId);
+  }
+
+  nameInput.addEventListener('change', async () => {
+    let v = (nameInput.value || '').trim().slice(0,24);
+    if (!v) v = genName();
+
+    if (!USE_BACKEND || !WORKER_ENDPOINT) {
+      if (isNameTakenLocal(v)) { setNameError('That username is taken. Please choose another.'); return; }
+      setNameError('');
+      nameInput.value = v;
+      localStorage.setItem('nozack_name', v);
+      return;
+    }
+
+    // backend mode: best-effort check; submit is final authority
+    try {
+      const res = await fetch(WORKER_ENDPOINT + `/check?name=${encodeURIComponent(v)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.taken) { setNameError('That username is taken. Please choose another.'); return; }
+      }
+    } catch {}
+    setNameError('');
+    nameInput.value = v;
+    localStorage.setItem('nozack_name', v);
+  });
+
+  function recordLocalScore(name, s){
+    const lb = lbGet();
+    lb.all = lb.all || [];
+
+    const taken = lb.all.find(e => e.name === name && e.clientId && e.clientId !== clientId);
+    if (taken) {
+      setNameError('That username is taken. Please choose another.');
+      return { ok:false, reason:'taken' };
+    }
+
+    const idx = lb.all.findIndex(e => e.name === name);
+    if (idx >= 0) {
+      if (s > lb.all[idx].score) lb.all[idx] = { name, score: s, t: Date.now(), clientId };
+    } else {
+      lb.all.push({ name, score: s, t: Date.now(), clientId });
+    }
+
+    lb.all = lb.all.sort((x,y)=> y.score - x.score || x.t - y.t).slice(0,50);
+    lbSet(lb);
+    return { ok:true };
+  }
+
+  async function recordBackendScore(name, s){
+    const res = await fetch(WORKER_ENDPOINT + '/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, score: s, clientId })
+    });
+    if (res.status === 409) {
+      const data = await res.json().catch(()=>({}));
+      setNameError(data.message || 'That username is taken. Please choose another.');
+      throw new Error('username_taken');
+    }
+    if (!res.ok) throw new Error('Backend submit failed');
+  }
+
+  async function fetchBackendLeaderboard(){
+    const res = await fetch(WORKER_ENDPOINT + `/leaderboard`);
+    if (!res.ok) throw new Error('Backend fetch failed');
+    const data = await res.json();
+    return (data.entries || []).map(r => ({ name: r.name, score: r.score, t: r.t }));
+  }
+
+  function getLocalLeaderboard(){
+    const lb = lbGet();
+    return (lb.all || []);
+  }
+
+  async function renderLeaderboard(){
+    lbList.innerHTML = '';
+    let entries = [];
+    try {
+      if (USE_BACKEND && WORKER_ENDPOINT) {
+        lbHint.textContent = 'All-time leaderboard (shared).';
+        entries = await fetchBackendLeaderboard();
+      } else {
+        lbHint.textContent = 'All-time leaderboard (local only).';
+        entries = getLocalLeaderboard();
+      }
+    } catch {
+      entries = getLocalLeaderboard();
+      lbHint.textContent = 'Backend error — showing local fallback.';
+    }
+
+    if (!entries.length) {
+      lbList.innerHTML = `<div class="small" style="padding:12px 4px;">No scores yet. Play a round!</div>`;
+      return;
+    }
+
+    const me = (nameInput.value || '').trim();
+    entries.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const left = document.createElement('div');
+      left.innerHTML = `<strong>#${i+1}</strong> <span style="margin-left:8px;${r.name===me?'color:rgba(255,255,255,0.98)':''}">${escapeHtml(r.name)}</span>`;
+      const right = document.createElement('div');
+      right.innerHTML = `<strong>${r.score}</strong>`;
+      row.appendChild(left);
+      row.appendChild(right);
+      lbList.appendChild(row);
+    });
+  }
+
+  function escapeHtml(s){
+    return (s||'').replace(/[&<>"]+/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]||c));
+  }
+
+  // Modal
+  lbBtn.addEventListener('click', async () => {
+    modalBackdrop.style.display = 'flex';
+    await renderLeaderboard();
+  });
+  closeModal.addEventListener('click', () => { modalBackdrop.style.display = 'none'; });
+  modalBackdrop.addEventListener('click', (e) => {
+    if (e.target === modalBackdrop) modalBackdrop.style.display = 'none';
+  });
+  // --- Game ---
+  function reset() {
+    setNameError('');
+    score = 0;
+    scoreEl.textContent = score;
+
+    stack = [];
+    cam = 0;
+
+    const baseW = 360;
+    stack.push({ x: (LOGICAL_W - baseW)/2, y: GROUND_Y, w: baseW, h: SLAB_H, level: 0 });
+
+    spawnNextSlab();
+  }
+
+  function spawnNextSlab() {
+    const top = stack[stack.length - 1];
+
+    // Next slab width exactly matches the resulting width of the slab below (no widening)
+    const w = top.w;
+    const dir = Math.random() < 0.5 ? -1 : 1;
+    const startX = dir === 1 ? -w - 40 : LOGICAL_W + 40;
+
+    const y = top.y - SLAB_H;
+    // Speed curve: after level 20, slow down by half, then keep increasing at the same rate
+    const baseAt20 = BASE_SPEED + SPEED_GAIN * 20;
+    const base = (score < 20)
+      ? (BASE_SPEED + SPEED_GAIN * score)
+      : (baseAt20 * 0.5 + SPEED_GAIN * (score - 20));
+    current = {
+      x: startX,
+      y,
+      w,
+      h: SLAB_H,
+      level: score + 1,
+      vx: dir * clamp(base, 120, MAX_SPEED),
+      vy: 0,
+      state: 'moving',
+      t: 0,
+      jitterStrength: score < ERRATIC_START_AT ? 0 : (score - ERRATIC_START_AT + 1) * ERRATIC_GAIN,
+      jitterFreq: rand(1.1, 2.4),
+      jitterPhase: rand(0, Math.PI*2)
+    };
+
+    // subtle cue
+    whoosh();
+  }
+
+  function drop() {
+    if (!current) return;
+
+    ensureAudio();
+
+    if (current.state === 'moving') {
+      current.state = 'dropping';
+      current.vy = 0;
+      beep({freq: 520 + Math.random()*40, dur:0.02, gain:0.02, type:'sine'});
+    } else if (current.state === 'gameover') {
+      reset();
+      beep({freq: 520, dur:0.02, gain:0.02});
+    }
+  }
+
+  async function gameOver() {
+    current.state = 'gameover';
+    thud(0.8);
+
+    if (score > best) {
+      best = score;
+      localStorage.setItem('nozack_best', String(best));
+      bestEl.textContent = best;
+    }
+
+    const name = (nameInput.value || '').trim().slice(0,24) || genName();
+    nameInput.value = name;
+    localStorage.setItem('nozack_name', name);
+
+    if (!USE_BACKEND || !WORKER_ENDPOINT) {
+      recordLocalScore(name, score);
+      return;
+    }
+    try { await recordBackendScore(name, score); } catch {}
+  }
+
+  function intersect1D(a0, a1, b0, b1) {
+    const lo = Math.max(a0, b0);
+    const hi = Math.min(a1, b1);
+    return hi > lo ? { lo, hi, w: hi - lo } : null;
+  }
+
+  const debris = [];
+
+  // --- Celebration (Level 20) ---
+  let celebrateUntil = 0;
+  const fireworks = []; // {x,y,vx,vy,life,color}
+  function launchFireworks(y){
+    const colors = ['rgba(120,190,255,','rgba(80,220,200,','rgba(180,140,255,','rgba(255,180,120,'];
+    for (let b = 0; b < 8; b++) {
+      const cx = rand(120, LOGICAL_W-120);
+      const cy = y - rand(40, 140);
+      const base = colors[Math.floor(Math.random()*colors.length)];
+      for (let i = 0; i < 22; i++) {
+        const a = rand(0, Math.PI*2);
+        const sp = rand(140, 380);
+        fireworks.push({
+          x: cx,
+          y: cy,
+          vx: Math.cos(a)*sp,
+          vy: Math.sin(a)*sp - rand(80, 180),
+          life: rand(0.7, 1.2),
+          color: base
+        });
+      }
+    }
+  }
+
+  function spawnDebris(cur, ov) {
+    const leftOverhang = Math.max(0, ov.lo - cur.x);
+    if (leftOverhang > 2) {
+      debris.push({
+        x: cur.x + leftOverhang/2,
+        y: cur.y + cur.h/2,
+        w: leftOverhang,
+        h: cur.h,
+        vx: -rand(40, 140),
+        vy: -rand(220, 520),
+        life: 1.0
+      });
+    }
+    const rightOverhang = Math.max(0, (cur.x + cur.w) - ov.hi);
+    if (rightOverhang > 2) {
+      debris.push({
+        x: ov.hi + rightOverhang/2,
+        y: cur.y + cur.h/2,
+        w: rightOverhang,
+        h: cur.h,
+        vx: rand(40, 140),
+        vy: -rand(220, 520),
+        life: 1.0
+      });
+    }
+  }
+
+  function resolveLanding() {
+    const prev = stack[stack.length - 1];
+
+    const ov = intersect1D(current.x, current.x + current.w, prev.x, prev.x + prev.w);
+    if (!ov) { gameOver(); return; }
+
+    spawnDebris(current, ov);
+
+    const newSlab = { x: ov.lo, y: prev.y - SLAB_H, w: ov.w, h: SLAB_H };
+    stack.push(newSlab);
+
+    score++;
+    scoreEl.textContent = score;
+
+    // Level 20 celebration
+    if (score === 20) {
+      celebrateUntil = performance.now() + 1600;
+      launchFireworks(newSlab.y);
+      // bright chime
+      beep({freq: 660, dur:0.05, gain:0.03});
+      beep({freq: 880, dur:0.06, gain:0.02});
+    }
+
+    // landing thud scales with overlap quality
+    const quality = clamp(ov.w / prev.w, 0, 1);
+    thud(0.6 + 0.7*quality);
+
+    spawnNextSlab();
+  }
+
+  // --- Input ---
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); drop(); }
+    if (e.key.toLowerCase() === 'r') reset();
+  }, { passive: false });
+
+  canvas.addEventListener('pointerdown', () => drop(), { passive: true });
+
+  // --- Update + Render ---
+  let last = performance.now();
+
+  function update(dt) {
+    for (let i = debris.length - 1; i >= 0; i--) {
+      const d = debris[i];
+      d.vy += GRAVITY * dt;
+      d.x += d.vx * dt;
+      d.y += d.vy * dt;
+      d.life -= dt * 0.9;
+      if (d.life <= 0 || d.y > LOGICAL_H + 400) debris.splice(i, 1);
+    }
+
+    // Update fireworks
+    for (let i = fireworks.length - 1; i >= 0; i--) {
+      const f = fireworks[i];
+      f.vy += (GRAVITY * 0.45) * dt;
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.life -= dt;
+      if (f.life <= 0) fireworks.splice(i, 1);
+    }
+
+    if (!current) return;
+
+    current.t += dt;
+
+    if (current.state === 'moving') {
+      current.x += current.vx * dt;
+
+      const baseAt20 = BASE_SPEED + SPEED_GAIN * 20;
+      const base = (score < 20)
+        ? (BASE_SPEED + SPEED_GAIN * score)
+        : (baseAt20 * 0.5 + SPEED_GAIN * (score - 20));
+      const max = clamp(base + 420 + score*8, 300, MAX_SPEED);
+
+      const sinBias = Math.sin(current.t * current.jitterFreq + current.jitterPhase) * current.jitterStrength;
+      const walk = rand(-1, 1) * current.jitterStrength * 0.9;
+
+      current.vx += (sinBias + walk) * dt;
+      current.vx = clamp(current.vx, -max, max);
+
+      if (current.x < -current.w - 80) {
+        current.x = -current.w - 80;
+        current.vx = Math.abs(current.vx) * rand(0.85, 1.08);
+      }
+      if (current.x > LOGICAL_W + 80) {
+        current.x = LOGICAL_W + 80;
+        current.vx = -Math.abs(current.vx) * rand(0.85, 1.08);
+      }
+    } else if (current.state === 'dropping') {
+      current.vy += GRAVITY * dt;
+      current.y += current.vy * dt;
+
+      const top = stack[stack.length - 1];
+      const landingY = top.y - SLAB_H;
+      if (current.y >= landingY) {
+        current.y = landingY;
+        resolveLanding();
+      }
+    }
+
+    const focusY = current ? current.y : (stack[stack.length-1]?.y ?? GROUND_Y);
+    const desired = (VIEW_TARGET_Y - focusY);
+    cam += (desired - cam) * CAM_SMOOTH;
+  }
+
+  function draw() {
+    // Clear in CSS pixel coordinates
+    const rect = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, rect.width, rect.height);
+
+    beginScene();
+
+    ctx.save();
+    ctx.translate(0, cam);
+
+    drawGrid();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(0, GROUND_Y + SLAB_H, LOGICAL_W, 6);
+
+    for (let i = 0; i < stack.length; i++) {
+      const s = stack[i];
+      drawSlab(s.x, s.y, s.w, s.h, 0.14 + i*0.001, s.level || 0);
+    }
+
+    for (const d of debris) {
+      ctx.globalAlpha = clamp(d.life, 0, 1);
+      drawSlab(d.x - d.w/2, d.y - d.h/2, d.w, d.h, 0.12);
+      ctx.globalAlpha = 1;
+    }
+
+    if (current && current.state !== 'gameover') {
+      drawSlab(current.x, current.y, current.w, current.h, 0.24, current.level || 0);
+    }
+
+    const nowMs = performance.now();
+    if (nowMs < celebrateUntil) {
+      ctx.save();
+      ctx.setTransform(1,0,0,1,0,0);
+      const rect = canvas.getBoundingClientRect();
+      const t = 1 - ((celebrateUntil - nowMs) / 1600);
+      const alpha = t < 0.15 ? (t/0.15) : (t > 0.85 ? ((1-t)/0.15) : 1);
+      ctx.globalAlpha = clamp(alpha, 0, 1);
+      ctx.fillStyle = 'rgba(10,16,24,0.55)';
+      const w = Math.min(520, rect.width - 24);
+      const h = 64;
+      const x = (rect.width - w)/2;
+      const y = 96;
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.textAlign = 'center';
+      ctx.font = '700 22px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText('You Reached Level 20!', rect.width/2, y + 40);
+      ctx.restore();
+    }
+
+    if (current && current.state === 'gameover') {
+      ctx.save();
+      // screen-space overlay
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.textAlign = 'center';
+      ctx.font = '700 42px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillText('Out of Tolerance', rect.width/2, rect.height/2 - 10);
+      ctx.font = '500 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.fillText('Tap/click or press Space to try again', rect.width/2, rect.height/2 + 26);
+      ctx.restore();
+    }
+
+    ctx.restore(); // cam translate
+    endScene();
+  }
+
+  function drawGrid() {
+    const step = 40;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    ctx.lineWidth = 1;
+
+    const y0 = -cam;
+    const y1 = -cam + LOGICAL_H;
+    const startY = Math.floor((y0 - 200) / step) * step;
+    const endY = Math.ceil((y1 + 200) / step) * step;
+
+    for (let y = startY; y <= endY; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(LOGICAL_W, y);
+      ctx.stroke();
+    }
+
+    for (let x = 0; x <= LOGICAL_W; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(x, y0 - 200);
+      ctx.lineTo(x, y1 + 200);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  // Floors: square edges (no windows)
+  function drawSlab(x, y, w, h, alpha = 0.2, level = 0) {
+    ctx.save();
+
+    if (level >= 21) {
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, `rgba(70, 140, 220, ${alpha})`);
+      g.addColorStop(1, `rgba(40, 90, 170, ${alpha})`);
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = `rgba(173, 196, 220, ${alpha})`;
+    }
+    ctx.fillRect(x, y, w, h);
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, w, h);
+
+    ctx.restore();
+  }
+
+  function loop(now) {
+    const dt = Math.min(0.033, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // Start
+  fitCanvasToCSS();
+  reset();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
