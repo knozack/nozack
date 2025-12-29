@@ -35,25 +35,45 @@
   window.addEventListener('resize', fitHero, { passive: true });
   fitHero();
 
-  // Scroll breakup
-  const letters = Array.from(document.querySelectorAll('.letter'));
-  if (letters.length && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    gsap.registerPlugin(ScrollTrigger);
-    gsap.set(letters, { x: 0, y: 0, rotation: 0, opacity: 1, transformOrigin: '50% 50%' });
+  // Scroll breakup (iOS-friendly)
+const letters = Array.from(document.querySelectorAll('.letter'));
+if (letters.length && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  gsap.registerPlugin(ScrollTrigger);
 
-    gsap.timeline({
-      scrollTrigger: { trigger: '#hero', start: 'top top', end: '+=220', scrub: true }
-    })
-      .to(letters, { scaleX: 0.965, scaleY: 1.04, stagger: 0.01, ease: 'none' }, 0)
-      .to(letters, {
-        y: (i) => 520 + i * 72,
-        x: (i) => (i - 2.5) * 110,
-        rotation: (i) => (i - 2.5) * 36,
-        opacity: 0.08,
-        stagger: 0.015,
-        ease: 'none'
-      }, 0.08);
-  }
+  // Helps iOS Safari behave more consistently with scroll + viewport changes
+  ScrollTrigger.config({ ignoreMobileResize: true });
+  try { ScrollTrigger.normalizeScroll(true); } catch(e) {}
+
+  gsap.set(letters, { x: 0, y: 0, rotation: 0, opacity: 1, transformOrigin: '50% 50%' });
+
+  const tl = gsap.timeline({
+    scrollTrigger: {
+      trigger: '#hero',
+      start: 'top top',
+      end: '+=260',     // slightly longer than before
+      scrub: true
+    }
+  });
+
+  tl.to(letters, { scaleX: 0.965, scaleY: 1.04, stagger: 0.01, ease: 'none' }, 0)
+    .to(letters, {
+      y: (i) => 560 + i * 82,
+      x: (i) => (i - 2.5) * 130,
+      rotation: (i) => (i - 2.5) * 44,
+      opacity: 0.06,
+      stagger: 0.015,
+      ease: 'none'
+    }, 0.02);
+
+  // iOS Safari needs refreshes after load / orientation changes
+  const refreshSoon = () => setTimeout(() => ScrollTrigger.refresh(), 250);
+  window.addEventListener('load', refreshSoon, { passive: true });
+  window.addEventListener('orientationchange', refreshSoon, { passive: true });
+  window.addEventListener('pageshow', refreshSoon, { passive: true });
+
+  // Also refresh after first touch (sometimes iOS doesn't “settle” until interaction)
+  window.addEventListener('touchstart', refreshSoon, { passive: true, once: true });
+}
 
   /*// Contact form submit — Formspree
   const form = document.getElementById('contactForm');
