@@ -127,37 +127,35 @@ main{ padding-top: 64px; }
    PROJECT CARDS — FIXED (v2)
    ========================= */
 
-/* Make the project cards taller */
-.projectsGrid > *{
-  min-height: 380px;           /* ~33% taller */
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start; /* keep content at top */
+.projectsGrid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 18px;
 }
 
-/* Any button/link inside a project card should NOT stretch or become a giant pill */
-.projectsGrid a.btn{
-  display: inline-flex !important;
-  align-items: center;
-  justify-content: center;
-
-  width: fit-content !important;   /* prevents full-width */
-  max-width: 100%;
-  padding: 8px 16px !important;    /* small height */
-  font-size: 11px !important;
-  line-height: 1 !important;
-
-  border-radius: 999px;
-  margin-top: 12px;                /* directly under description */
-  align-self: flex-start;          /* left aligned */
+/* make the project cards taller */
+.projectsGrid > .card{
+  min-height: 380px;
 }
 
-/* Optional: if you are using btn--small, keep it consistent */
+/* ensure the BLT button stays small and inside the card */
+.projectsGrid .btn{
+  margin-top: 12px;
+  align-self: flex-start;
+  width: auto;
+}
+
 .btn--small{
-  padding: 8px 16px !important;
-  font-size: 11px !important;
-  line-height: 1 !important;
-  width: fit-content !important;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding: 8px 16px;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 999px;
 }
 
 /* Contact */
