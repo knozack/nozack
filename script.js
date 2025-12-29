@@ -55,9 +55,9 @@
       }, 0.08);
   }
 
-  // Contact form submit — Formspree
+  /*// Contact form submit — Formspree
   const form = document.getElementById('contactForm');
-  const note = document.getElementById('formNote');
+  const note = document.getElementById('formNote');*/
 
   async function postToFormspree(formEl) {
     // Uses the <form action="https://formspree.io/f/..."> you add in index.html
