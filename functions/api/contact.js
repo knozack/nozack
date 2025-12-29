@@ -36,7 +36,7 @@ export async function onRequestPost(context) {
 
     const adminPayload = {
       personalizations: [{ to: [{ email: TO }] }],
-      from: { email: FROM, name: "nozack.com" },
+      from: { email: 'no-reply@nozack.pages.dev', name: 'nozack.com' },
       reply_to: { email, name },
       subject: `nozack.com contact: ${name}`,
       content: [
@@ -52,7 +52,7 @@ export async function onRequestPost(context) {
 
     const receiptPayload = {
       personalizations: [{ to: [{ email }] }],
-      from: { email: FROM, name: "nozack.com" },
+      from: { email: 'no-reply@nozack.pages.dev', name: 'nozack.com' },
       subject: "We received your message",
       content: [
         {
