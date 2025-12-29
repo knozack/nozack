@@ -53,18 +53,18 @@ a{ color: inherit; text-decoration:none; }
 main{ padding-top: 64px; }
 
 .hero{
-  /* slightly shorter than before */
-  min-height: 68vh;
-  min-height: 68svh;  /* iOS stable viewport */
-  min-height: 68dvh;  /* modern dynamic viewport */
+  /* slightly shorter */
+  min-height: 66vh;
+  min-height: 66svh;
+  min-height: 66dvh;
 
   display:flex;
-  align-items:center;        /* CENTER vertically again */
-  justify-content:center;
+  align-items:center;     /* vertical centering */
+  justify-content:center; /* horizontal centering */
   position:relative;
   overflow:hidden;
 
-  padding-top: 0;            /* remove the push-down */
+  padding-top: 0;
   padding-bottom: 0;
 }
 .titleStage{
