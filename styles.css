@@ -123,26 +123,42 @@ main{ padding-top: 64px; }
 .card__meta{ margin-top: 8px; color: rgba(10,10,10,.62); font-size: 14px; }
 .card__cta{ margin-top: 12px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: rgba(10,10,10,.78); }
 
-/* Projects cards — consistent height, normal buttons */
+/* =========================
+   PROJECT CARDS — FIXED
+   ========================= */
+
 .projectsGrid > * {
-  min-height: 320px;          /* taller cards, adjust if needed */
+  min-height: 380px;          /* ~33% taller than before */
   display: flex;
   flex-direction: column;
+  justify-content: flex-start;
+  padding-bottom: 28px;
 }
 
-/* Buttons inside cards should behave like normal inline buttons */
-.projectsGrid > * a.btn {
-  margin-top: 10px;           /* simple spacing below text */
+/* Keep text stacked normally */
+.projectsGrid h3,
+.projectsGrid p {
+  margin-bottom: 8px;
 }
 
-/* Smaller button variant (used inside BLT.STREAM card) */
-.btn--small{
-  padding: 10px 14px;
-  font-size: 12px;
+/* SMALL button style (original size feel) */
+.btn--small {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   border-radius: 999px;
   width: auto;
-  display: inline-flex;
-  align-self: flex-start;     /* keeps it left-aligned in the card */
+  max-width: fit-content;
+}
+
+/* Place button under description */
+.projectsGrid .btn {
+  margin-top: 14px;     /* directly under "Building stacker game" */
+  align-self: flex-start;
 }
 
 /* Contact */
