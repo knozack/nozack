@@ -1,28 +1,28 @@
-export async function onRequestPost(context) {
+export async function onRequestPost({ request, env }) {
   try {
-    const { request, env } = context;
     const body = await request.json();
 
-    const name = (body?.name || "").toString().trim().slice(0, 80);
-    const email = (body?.email || "").toString().trim().slice(0, 120);
-    const message = (body?.message || "").toString().trim().slice(0, 2000);
-    const page = (body?.page || "").toString().trim().slice(0, 500);
+    const name = (body?.name || "").trim();
+    const email = (body?.email || "").trim();
+    const message = (body?.message || "").trim();
+    const page = (body?.page || "").trim();
 
     if (!name || !email || !message) {
       return json({ error: "Missing fields." }, 400);
     }
+
     if (!/^\S+@\S+\.\S+$/.test(email)) {
       return json({ error: "Invalid email." }, 400);
     }
 
-    // REQUIRE env vars (no silent fallback to no-reply)
     const TO = env.CONTACT_TO;
-    const FROM = env.CONTACT_FROM;
-
-    if (!TO || !FROM) {
-      console.log("Missing env vars", { hasTO: !!TO, hasFROM: !!FROM });
-      return json({ error: "Server not configured (missing email env vars)." }, 500);
+    if (!TO) {
+      console.log("Missing CONTACT_TO");
+      return json({ error: "Server misconfigured." }, 500);
     }
+
+    // IMPORTANT: hard-coded sender
+    const FROM = "no-reply@nozack.pages.dev";
 
     const send = async (payload) => {
       const res = await fetch("https://api.mailchannels.net/tx/v1/send", {
@@ -30,13 +30,13 @@ export async function onRequestPost(context) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const text = await res.text(); // capture error details
+      const text = await res.text();
       return { ok: res.ok, status: res.status, text };
     };
 
     const adminPayload = {
       personalizations: [{ to: [{ email: TO }] }],
-      from: { email: 'no-reply@nozack.pages.dev', name: 'nozack.com' },
+      from: { email: FROM, name: "nozack.com" },
       reply_to: { email, name },
       subject: `nozack.com contact: ${name}`,
       content: [
@@ -52,7 +52,7 @@ export async function onRequestPost(context) {
 
     const receiptPayload = {
       personalizations: [{ to: [{ email }] }],
-      from: { email: 'no-reply@nozack.pages.dev', name: 'nozack.com' },
+      from: { email: FROM, name: "nozack.com" },
       subject: "We received your message",
       content: [
         {
@@ -70,15 +70,12 @@ export async function onRequestPost(context) {
 
     if (!r1.ok || !r2.ok) {
       console.log("MailChannels failed", { r1, r2 });
-      return json(
-        { error: "Mail send failed.", details: { r1: pick(r1), r2: pick(r2) } },
-        502
-      );
+      return json({ error: "Mail send failed." }, 502);
     }
 
     return json({ ok: true }, 200);
   } catch (e) {
-    console.log("Server error", String(e?.stack || e));
+    console.log("Server error", e);
     return json({ error: "Server error." }, 500);
   }
 }
@@ -88,8 +85,4 @@ function json(obj, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
-}
-
-function pick(r) {
-  return { status: r.status, text: (r.text || "").slice(0, 500) };
 }
