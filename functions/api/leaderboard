@@ -1,11 +1,21 @@
 // functions/api/leaderboard.js
+
 function weekKeyUTC(ms) {
+  // Week starts Monday 00:00 UTC
   const d = new Date(ms);
-  const day = d.getUTCDay();
+  const day = d.getUTCDay();           // 0=Sun ... 6=Sat
   const diff = (day === 0 ? -6 : 1 - day);
   d.setUTCDate(d.getUTCDate() + diff);
   d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+}
+
+function normalizeRows(rows) {
+  return (rows || []).map(r => ({
+    name: r.username,
+    score: Number(r.score) || 0,
+    t: r.created_at ? Date.parse(r.created_at) || null : null
+  }));
 }
 
 export async function onRequestGet({ request, env }) {
@@ -13,18 +23,34 @@ export async function onRequestGet({ request, env }) {
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "25", 10), 100);
   const wk = weekKeyUTC(Date.now());
 
-  const weekly = await env.DB.prepare(
-    "SELECT username, score, created_at FROM scores WHERE week_key = ? ORDER BY score DESC, created_at ASC LIMIT ?"
+  // IMPORTANT:
+  // This uses env.DB (binding name). Your D1 database can be called "bltstream_leaderboard"
+  // in the UI — but the binding in Pages must be named DB for this code to work.
+
+  const weeklyRes = await env.DB.prepare(
+    `SELECT username, score, created_at
+     FROM scores
+     WHERE week_key = ?
+     ORDER BY score DESC, created_at ASC
+     LIMIT ?`
   ).bind(wk, limit).all();
 
-  const alltime = await env.DB.prepare(
-    "SELECT username, score, created_at FROM scores ORDER BY score DESC, created_at ASC LIMIT ?"
+  const alltimeRes = await env.DB.prepare(
+    `SELECT username, score, created_at
+     FROM scores
+     ORDER BY score DESC, created_at ASC
+     LIMIT ?`
   ).bind(limit).all();
 
   return new Response(JSON.stringify({
     ok: true,
     week_key: wk,
-    weekly: weekly.results || [],
-    alltime: alltime.results || []
-  }), { headers: { "Content-Type": "application/json" } });
+    weekly: normalizeRows(weeklyRes.results),
+    alltime: normalizeRows(alltimeRes.results)
+  }), {
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store"
+    }
+  });
 }
