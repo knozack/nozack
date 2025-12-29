@@ -1,39 +1,153 @@
 // functions/api/score.js
 // POST /api/score
 // Body: { username, score, player_id }
-//
-// Rules:
-// - profanity blocked
-// - username unique (case-insensitive): same username cannot be claimed by different player_id
-// - one entry per username per week: keeps BEST score
-// - placement returned for weekly + all-time
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-    },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 }
 
 function weekKeyUTC(ms) {
   const d = new Date(ms);
-  const day = d.getUTCDay(); // 0=Sun
-  const diff = (day === 0 ? -6 : 1 - day); // Monday start
+  const day = d.getUTCDay();
+  const diff = (day === 0 ? -6 : 1 - day);
   d.setUTCDate(d.getUTCDate() + diff);
   d.setUTCHours(0, 0, 0, 0);
   return d.toISOString().slice(0, 10);
 }
 
 function normalizeUsername(raw) {
-  let u = String(raw ?? "").trim();
-  u = u.replace(/\s+/g, " ");
+  let u = String(raw ?? "").trim().replace(/\s+/g, " ");
   if (u.length > 24) u = u.slice(0, 24);
   return u;
 }
 
+function isUsernameValid(u) {
+  return /^[A-Za-z0-9 _.\-]{2,24}$/.test(u);
+}
+
+// Lightweight profanity filter (expand whenever)
+const BANNED = [
+  "fuck","fuuck","fuuuck","fuuuuck","bitch","asshole","cunt","pussy","slut","whore",
+  "nigger","faggot","retard","porn","sex"
+];
+
+function containsProfanity(u) {
+  const s = u.toLowerCase();
+  return BANNED.some(w => s.includes(w));
+}
+
+async function ensureUserClaim(env, username, player_id, nowSec) {
+  // If username exists with different owner -> conflict
+  const existing = await env.DB.prepare(
+    `SELECT player_id FROM users WHERE username = ? COLLATE NOCASE LIMIT 1`
+  ).bind(username).first();
+
+  if (existing?.player_id && existing.player_id !== player_id) {
+    return { ok: false, conflict: true };
+  }
+
+  // If not claimed yet, claim it
+  if (!existing?.player_id) {
+    await env.DB.prepare(
+      `INSERT INTO users (username, player_id, created_at) VALUES (?, ?, ?)`
+    ).bind(username, player_id, nowSec).run();
+  }
+
+  return { ok: true };
+}
+
+async function getRankWeekly(env, username, week_key) {
+  const row = await env.DB.prepare(
+    `
+    WITH lb AS (
+      SELECT username, MAX(score) AS score, MIN(created_at) AS created_at
+      FROM scores
+      WHERE week_key = ?
+      GROUP BY username
+    ),
+    ranked AS (
+      SELECT username, ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rnk
+      FROM lb
+    )
+    SELECT rnk FROM ranked WHERE username = ? COLLATE NOCASE
+    `
+  ).bind(week_key, username).first();
+  return row?.rnk ?? null;
+}
+
+async function getRankAllTime(env, username) {
+  const row = await env.DB.prepare(
+    `
+    WITH lb AS (
+      SELECT username, MAX(score) AS score, MIN(created_at) AS created_at
+      FROM scores
+      GROUP BY username
+    ),
+    ranked AS (
+      SELECT username, ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rnk
+      FROM lb
+    )
+    SELECT rnk FROM ranked WHERE username = ? COLLATE NOCASE
+    `
+  ).bind(username).first();
+  return row?.rnk ?? null;
+}
+
+export async function onRequestPost({ request, env }) {
+  let body = {};
+  try { body = await request.json(); }
+  catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
+
+  const player_id = String(body.player_id ?? "").trim();
+  const score = Number(body.score);
+  const username = normalizeUsername(body.username);
+
+  if (!player_id) return json({ ok: false, error: "Missing player_id" }, 400);
+  if (!Number.isFinite(score) || score < 0 || score > 9999) return json({ ok: false, error: "Invalid score" }, 400);
+
+  if (!username) return json({ ok: false, error: "Missing username" }, 400);
+  if (!isUsernameValid(username)) return json({ ok: false, error: "Username must be 2–24 chars (A–Z, 0–9, space, _ . -)" }, 400);
+  if (containsProfanity(username)) return json({ ok: false, error: "Username not allowed" }, 400);
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const week_key = weekKeyUTC(Date.now());
+
+  // Enforce unique username ownership
+  const claim = await ensureUserClaim(env, username, player_id, nowSec);
+  if (!claim.ok && claim.conflict) return json({ ok: false, error: "Username not available" }, 409);
+
+  // Only record if it improves their weekly best (optional but keeps DB smaller)
+  const bestWeek = await env.DB.prepare(
+    `SELECT MAX(score) AS best FROM scores WHERE week_key = ? AND username = ? COLLATE NOCASE`
+  ).bind(week_key, username).first();
+
+  const prevBest = Number(bestWeek?.best ?? -1);
+  let didUpdateWeekly = false;
+
+  if (score > prevBest) {
+    await env.DB.prepare(
+      `INSERT INTO scores (player_id, username, score, created_at, week_key)
+       VALUES (?, ?, ?, ?, ?)`
+    ).bind(player_id, username, score, nowSec, week_key).run();
+    didUpdateWeekly = true;
+  }
+
+  const rank_weekly = await getRankWeekly(env, username, week_key);
+  const rank_alltime = await getRankAllTime(env, username);
+
+  return json({
+    ok: true,
+    username,
+    score,
+    week_key,
+    did_update_weekly: didUpdateWeekly,
+    rank_weekly,
+    rank_alltime,
+  });
+}
 function isUsernameValid(u) {
   // allow letters, numbers, space, underscore, dash, dot
   return /^[A-Za-z0-9 _.\-]{2,24}$/.test(u);
