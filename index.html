@@ -61,6 +61,14 @@
 
         <div class="contactGrid">
           <form id="contactForm" class="form" action="https://formspree.io/f/xjgvpvqo" method="POST">
+            
+            <!-- Honeypot -->
+  <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
+
+  <!-- Branding -->
+  <input type="hidden" name="_subject" value="New message — sent from nozack.com">
+  <input type="hidden" name="_template" value="table">
+            
             <label class="label">
               <span>Name</span>
               <input name="name" type="text" required maxlength="80" />
@@ -80,6 +88,9 @@
               <button class="btn" type="submit">Send message</button>
               <div class="formNote" id="formNote" role="status" aria-live="polite"></div>
             </div>
+            <textarea name="source" style="display:none;">
+Sent from nozack.com
+</textarea>
           </form>
 
           <div class="contactSide">
