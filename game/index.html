@@ -154,16 +154,23 @@
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
 
+  // Keep a stable DPR so overlay text sizing is consistent across browsers (Safari fix)
+  let DPR = 1;
+
+  // Simple mobile heuristic used for fireworks intensity too
+  const isMobile = window.matchMedia && window.matchMedia('(max-width: 560px)').matches;
+
   function fitCanvasToCSS(){
-    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
     const rect = canvas.getBoundingClientRect();
-    const w = Math.round(rect.width * dpr);
-    const h = Math.round(rect.height * dpr);
+    const w = Math.round(rect.width * DPR);
+    const h = Math.round(rect.height * DPR);
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
     }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Draw everything in CSS pixel units
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
   window.addEventListener('resize', fitCanvasToCSS, { passive: true });
 
@@ -274,9 +281,9 @@
     const sy = H / LOGICAL_H;
     const baseScale = Math.min(sx, sy);
 
-// Mobile boost so the action fills more of the screen
-const isMobile = window.matchMedia && window.matchMedia('(max-width: 560px)').matches;
-const s = isMobile ? (baseScale * 1.20) : baseScale;
+    // Mobile boost so the action fills more of the screen
+    const s = isMobile ? (baseScale * 1.20) : baseScale;
+
     const ox = (W - LOGICAL_W*s) / 2;
     const oy = (H - LOGICAL_H*s) / 2;
     ctx.save();
@@ -528,18 +535,65 @@ const s = isMobile ? (baseScale * 1.20) : baseScale;
   // Celebration (Level 20)
   let celebrateUntil = 0;
   const fireworks = [];
+
   function launchFireworks(y){
     const colors = ['rgba(120,190,255,','rgba(80,220,200,','rgba(180,140,255,','rgba(255,180,120,'];
-    for (let b = 0; b < 8; b++) {
-      const cx = rand(120, LOGICAL_W-120);
-      const cy = y - rand(40, 140);
+
+    // 🔥 More intense on mobile
+    const bursts = isMobile ? 12 : 8;
+    const particlesPerBurst = isMobile ? 34 : 22;
+
+    for (let b = 0; b < bursts; b++) {
+      const cx = rand(90, LOGICAL_W-90);
+      const cy = y - rand(60, 190);
+
       const base = colors[Math.floor(Math.random()*colors.length)];
-      for (let i = 0; i < 22; i++) {
+
+      for (let i = 0; i < particlesPerBurst; i++) {
         const a = rand(0, Math.PI*2);
-        const sp = rand(140, 380);
-        fireworks.push({ x: cx, y: cy, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - rand(80, 180), life: rand(0.7, 1.2), color: base });
+        const sp = isMobile ? rand(220, 560) : rand(140, 380);
+        const lift = isMobile ? rand(120, 260) : rand(80, 180);
+        const life = isMobile ? rand(0.95, 1.65) : rand(0.7, 1.2);
+
+        fireworks.push({
+          x: cx, y: cy,
+          vx: Math.cos(a)*sp,
+          vy: Math.sin(a)*sp - lift,
+          life,
+          color: base
+        });
       }
     }
+  }
+
+  function drawFireworks(){
+    if (!fireworks.length) return;
+
+    const r = isMobile ? 3.2 : 2.2; // bigger particles on mobile
+
+    ctx.save();
+    for (const f of fireworks) {
+      const a = clamp(f.life, 0, 1);
+      ctx.globalAlpha = a;
+
+      ctx.fillStyle = `${f.color}${0.95})`;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, r, 0, Math.PI*2);
+      ctx.fill();
+
+      // slightly longer tail on mobile
+      ctx.globalAlpha = a * 0.55;
+      ctx.strokeStyle = `${f.color}${0.85})`;
+      ctx.lineWidth = 1;
+
+      const tail = isMobile ? 0.022 : 0.015;
+      ctx.beginPath();
+      ctx.moveTo(f.x, f.y);
+      ctx.lineTo(f.x - f.vx * tail, f.y - f.vy * tail);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   function spawnDebris(cur, ov) {
@@ -568,10 +622,12 @@ const s = isMobile ? (baseScale * 1.20) : baseScale;
     scoreEl.textContent = score;
 
     if (score === 20) {
-      celebrateUntil = performance.now() + 1600;
+      celebrateUntil = performance.now() + (isMobile ? 2200 : 1600);
       launchFireworks(newSlab.y);
+
       beep({freq: 660, dur:0.05, gain:0.03});
       beep({freq: 880, dur:0.06, gain:0.02});
+      if (isMobile) beep({freq: 990, dur:0.05, gain:0.02});
     }
 
     const quality = clamp(ov.w / prev.w, 0, 1);
@@ -594,16 +650,16 @@ const s = isMobile ? (baseScale * 1.20) : baseScale;
   function update(dt) {
     for (let i = debris.length - 1; i >= 0; i--) {
       const d = debris[i];
-      d.vy += GRAVITY * dt;
+      d.vy += 2400 * dt;
       d.x += d.vx * dt;
       d.y += d.vy * dt;
       d.life -= dt * 0.9;
-      if (d.life <= 0 || d.y > LOGICAL_H + 400) debris.splice(i, 1);
+      if (d.life <= 0 || d.y > 700 + 400) debris.splice(i, 1);
     }
 
     for (let i = fireworks.length - 1; i >= 0; i--) {
       const f = fireworks[i];
-      f.vy += (GRAVITY * 0.45) * dt;
+      f.vy += (2400 * 0.45) * dt;
       f.x += f.vx * dt;
       f.y += f.vy * dt;
       f.life -= dt;
@@ -617,11 +673,11 @@ const s = isMobile ? (baseScale * 1.20) : baseScale;
     if (current.state === 'moving') {
       current.x += current.vx * dt;
 
-      const baseAt20 = BASE_SPEED + SPEED_GAIN * 20;
+      const baseAt20 = 220 + 9.5 * 20;
       const base = (score < 20)
-        ? (BASE_SPEED + SPEED_GAIN * score)
-        : (baseAt20 * 0.5 + SPEED_GAIN * (score - 20));
-      const max = clamp(base + 420 + score*8, 300, MAX_SPEED);
+        ? (220 + 9.5 * score)
+        : (baseAt20 * 0.5 + 9.5 * (score - 20));
+      const max = clamp(base + 420 + score*8, 300, 980);
 
       const sinBias = Math.sin(current.t * current.jitterFreq + current.jitterPhase) * current.jitterStrength;
       const walk = rand(-1, 1) * current.jitterStrength * 0.9;
@@ -633,25 +689,25 @@ const s = isMobile ? (baseScale * 1.20) : baseScale;
         current.x = -current.w - 80;
         current.vx = Math.abs(current.vx) * rand(0.85, 1.08);
       }
-      if (current.x > LOGICAL_W + 80) {
-        current.x = LOGICAL_W + 80;
+      if (current.x > 920 + 80) {
+        current.x = 920 + 80;
         current.vx = -Math.abs(current.vx) * rand(0.85, 1.08);
       }
     } else if (current.state === 'dropping') {
-      current.vy += GRAVITY * dt;
+      current.vy += 2400 * dt;
       current.y += current.vy * dt;
 
       const top = stack[stack.length - 1];
-      const landingY = top.y - SLAB_H;
+      const landingY = top.y - 26;
       if (current.y >= landingY) {
         current.y = landingY;
         resolveLanding();
       }
     }
 
-    const focusY = current ? current.y : (stack[stack.length-1]?.y ?? GROUND_Y);
-    const desired = (VIEW_TARGET_Y - focusY);
-    cam += (desired - cam) * CAM_SMOOTH;
+    const focusY = current ? current.y : (stack[stack.length-1]?.y ?? (700 - 70));
+    const desired = (170 - focusY);
+    cam += (desired - cam) * 0.16;
   }
 
   function draw() {
@@ -665,7 +721,7 @@ const s = isMobile ? (baseScale * 1.20) : baseScale;
     drawGrid();
 
     ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.fillRect(0, GROUND_Y + SLAB_H, LOGICAL_W, 6);
+    ctx.fillRect(0, (700 - 70) + 26, 920, 6);
 
     for (let i = 0; i < stack.length; i++) {
       const s = stack[i];
@@ -682,46 +738,72 @@ const s = isMobile ? (baseScale * 1.20) : baseScale;
       drawSlab(current.x, current.y, current.w, current.h, 0.24, current.level || 0);
     }
 
+    // Fireworks (scene space)
+    drawFireworks();
+
+    ctx.restore();
+    endScene();
+
+    // ---- Overlays (draw in CSS pixels, DPR-aware) ----
     const nowMs = performance.now();
+
     if (nowMs < celebrateUntil) {
       ctx.save();
-      ctx.setTransform(1,0,0,1,0,0);
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+
       const rect2 = canvas.getBoundingClientRect();
-      const t = 1 - ((celebrateUntil - nowMs) / 1600);
+
+      const t = 1 - ((celebrateUntil - nowMs) / (isMobile ? 2200 : 1600));
       const alpha = t < 0.15 ? (t/0.15) : (t > 0.85 ? ((1-t)/0.15) : 1);
       ctx.globalAlpha = clamp(alpha, 0, 1);
-      ctx.fillStyle = 'rgba(10,16,24,0.55)';
-      const w = Math.min(520, rect2.width - 24);
-      const h = 64;
+
+      ctx.fillStyle = 'rgba(10,16,24,0.58)';
+
+      const pad = 16;
+      const w = Math.min(rect2.width - pad*2, 720);
+      const h = Math.max(76, Math.min(120, rect2.height * 0.16));
       const x = (rect2.width - w)/2;
-      const y = 96;
+      const y = Math.max(22, rect2.height * 0.10);
+
       ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+      ctx.lineWidth = 1;
       ctx.strokeRect(x, y, w, h);
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+
+      const titleSize = clamp(rect2.width * 0.050, 22, 44);
+      ctx.fillStyle = 'rgba(255,255,255,0.94)';
       ctx.textAlign = 'center';
-      ctx.font = '700 22px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-      ctx.fillText('You Reached Level 20!', rect2.width/2, y + 40);
+      ctx.textBaseline = 'middle';
+      ctx.font = `800 ${titleSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.fillText('You Reached Level 20!', rect2.width/2, y + h/2);
+
       ctx.restore();
     }
 
     if (current && current.state === 'gameover') {
       ctx.save();
-      ctx.setTransform(1,0,0,1,0,0);
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+
+      const rect2 = canvas.getBoundingClientRect();
+
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(0, 0, rect.width, rect.height);
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillRect(0, 0, rect2.width, rect2.height);
+
+      const titleSize = clamp(rect2.width * 0.065, 28, 64);
+      const subSize   = clamp(rect2.width * 0.024, 14, 22);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.94)';
       ctx.textAlign = 'center';
-      ctx.font = '700 42px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-      ctx.fillText('Out of Tolerance', rect.width/2, rect.height/2 - 10);
-      ctx.font = '500 16px system-ui, -apple-system, Segoe UI, Roboto, Arial';
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
-      ctx.fillText('Tap/click or press Space to try again', rect.width/2, rect.height/2 + 26);
+      ctx.textBaseline = 'middle';
+      ctx.font = `900 ${titleSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.fillText('Out of Tolerance', rect2.width/2, rect2.height/2 - titleSize*0.15);
+
+      ctx.font = `600 ${subSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.fillStyle = 'rgba(255,255,255,0.76)';
+      ctx.fillText('Tap/click or press Space to try again', rect2.width/2, rect2.height/2 + titleSize*0.55);
+
       ctx.restore();
     }
-
-    ctx.restore();
-    endScene();
   }
 
   function drawGrid() {
@@ -731,18 +813,18 @@ const s = isMobile ? (baseScale * 1.20) : baseScale;
     ctx.lineWidth = 1;
 
     const y0 = -cam;
-    const y1 = -cam + LOGICAL_H;
+    const y1 = -cam + 700;
     const startY = Math.floor((y0 - 200) / step) * step;
     const endY = Math.ceil((y1 + 200) / step) * step;
 
     for (let y = startY; y <= endY; y += step) {
       ctx.beginPath();
       ctx.moveTo(0, y);
-      ctx.lineTo(LOGICAL_W, y);
+      ctx.lineTo(920, y);
       ctx.stroke();
     }
 
-    for (let x = 0; x <= LOGICAL_W; x += step) {
+    for (let x = 0; x <= 920; x += step) {
       ctx.beginPath();
       ctx.moveTo(x, y0 - 200);
       ctx.lineTo(x, y1 + 200);
