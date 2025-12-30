@@ -508,6 +508,12 @@ nameInput.addEventListener('keydown', (e) => {
     nameInput.value = username;
     localStorage.setItem('blt_name', username);
 
+    // Don’t submit zero scores
+if (score === 0) {
+  setNameOk('');   // or: setNameOk('Play again to post a score.');
+  return;
+}
+    
     // Auto-submit score to shared leaderboard
     try {
       const data = await submitScore(username, score);
