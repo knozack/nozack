@@ -10,7 +10,7 @@
     html, body { margin: 0; height: 100%; background:#0b0f14; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     body { overscroll-behavior: none; }
     #wrap { height: 100%; display:flex; align-items:center; justify-content:center; padding: 10px; box-sizing:border-box; }
-    canvas { width:min(920px, 100%); height:min(700px, calc(100vh - 20px)); display:block; border-radius:16px; box-shadow: 0 12px 40px rgba(0,0,0,.55); background: linear-gradient(180deg, #0b0f14 0%, #0a111a 40%, #070b10 100%); touch-action: manipulation; }
+    canvas { width:min(920px, 100%); height:min(700px, calc(100vh - 20px)); display:block; border-radius:16px; box-shadow: 0 12px 40px rgba(0,0,0,.55); background: linear-gradient(180deg, #0f1620 0%, #0c1726 40%, #0a0f16 100%); touch-action: manipulation; }
 
     .hud {
       position: fixed; top: 12px; left: 12px; right: 12px;
@@ -272,7 +272,11 @@
     H = rect.height;
     const sx = W / LOGICAL_W;
     const sy = H / LOGICAL_H;
-    const s = Math.min(sx, sy);
+    const baseScale = Math.min(sx, sy);
+
+// Mobile boost so the action fills more of the screen
+const isMobile = window.matchMedia && window.matchMedia('(max-width: 560px)').matches;
+const s = isMobile ? (baseScale * 1.20) : baseScale;
     const ox = (W - LOGICAL_W*s) / 2;
     const oy = (H - LOGICAL_H*s) / 2;
     ctx.save();
@@ -752,14 +756,14 @@
     ctx.save();
     if (level >= 21) {
       const g = ctx.createLinearGradient(x, y, x, y + h);
-      g.addColorStop(0, `rgba(70, 140, 220, ${alpha})`);
-      g.addColorStop(1, `rgba(40, 90, 170, ${alpha})`);
+      g.addColorStop(0, `rgba(120, 190, 255, ${alpha})`);
+      g.addColorStop(1, `rgba(70, 140, 230, ${alpha})`);
       ctx.fillStyle = g;
     } else {
-      ctx.fillStyle = `rgba(173, 196, 220, ${alpha})`;
+      ctx.fillStyle = `rgba(210, 230, 255, ${alpha})`;
     }
     ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
     ctx.lineWidth = 1;
     ctx.strokeRect(x, y, w, h);
     ctx.restore();
