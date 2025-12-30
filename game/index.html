@@ -333,6 +333,11 @@
     return v;
   }
 
+  // Prevent typing in the name field from controlling the game
+nameInput.addEventListener('keydown', (e) => {
+  e.stopPropagation(); // stops window keydown handler from seeing these keys
+}, { passive: false });
+
   nameInput.addEventListener('change', () => {
     let v = normalizeName(nameInput.value);
     if (!v) v = genName();
@@ -638,9 +643,13 @@
 
   // Input
   window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space') { e.preventDefault(); drop(); }
-    if (e.key.toLowerCase() === 'r') reset();
-  }, { passive: false });
+  // If user is typing in an input, ignore game controls
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+
+  if (e.code === 'Space') { e.preventDefault(); drop(); }
+  if (e.key.toLowerCase() === 'r') reset();
+}, { passive: false });
 
   canvas.addEventListener('pointerdown', () => drop(), { passive: true });
 
