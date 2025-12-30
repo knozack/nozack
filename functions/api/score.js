@@ -183,9 +183,20 @@ export async function onRequestPost({ request, env }) {
   const username = normalizeUsername(body.username);
 
   if (!player_id) return json({ ok: false, error: "Missing player_id" }, 400);
-  if (!Number.isFinite(score) || score < 0 || score > 9999) {
-    return json({ ok: false, error: "Invalid score" }, 400);
-  }
+  
+  const score = Number(scoreRaw);
+if (!Number.isFinite(score) || score < 0 || score > 9999) {
+  return json({ ok: false, error: "Invalid score" }, 400);
+}
+
+// Ignore zero scores (don’t write to DB / don’t show on leaderboard)
+if (score === 0) {
+  return json({
+    ok: true,
+    ignored: true,
+    message: "Zero score not recorded."
+  }, 200);
+}
 
   if (!username) return json({ ok: false, error: "Missing username" }, 400);
   if (!isUsernameValid(username)) {
