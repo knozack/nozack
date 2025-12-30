@@ -1,17 +1,27 @@
 // functions/api/score.js
 // POST /api/score
 // Body: { username, score, player_id }
+//
+// Rules:
+// - profanity blocked
+// - username unique (case-insensitive): same username cannot be claimed by different player_id
+// - weekly leaderboard: one row per (week_key, username), keeps BEST score
+// - placement returned for weekly + all-time
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
   });
 }
 
 function weekKeyUTC(ms) {
+  // Monday 00:00 UTC as YYYY-MM-DD
   const d = new Date(ms);
-  const day = d.getUTCDay();
+  const day = d.getUTCDay(); // 0=Sun
   const diff = (day === 0 ? -6 : 1 - day);
   d.setUTCDate(d.getUTCDate() + diff);
   d.setUTCHours(0, 0, 0, 0);
@@ -19,144 +29,25 @@ function weekKeyUTC(ms) {
 }
 
 function normalizeUsername(raw) {
-  let u = String(raw ?? "").trim().replace(/\s+/g, " ");
+  let u = String(raw ?? "").trim();
+  u = u.replace(/\s+/g, " ");
   if (u.length > 24) u = u.slice(0, 24);
   return u;
 }
 
 function isUsernameValid(u) {
-  return /^[A-Za-z0-9 _.\-]{2,24}$/.test(u);
-}
-
-// Lightweight profanity filter (expand whenever)
-const BANNED = [
-  "fuck","fuuck","fuuuck","fuuuuck","bitch","asshole","cunt","pussy","slut","whore",
-  "nigger","faggot","retard","porn","sex"
-];
-
-function containsProfanity(u) {
-  const s = u.toLowerCase();
-  return BANNED.some(w => s.includes(w));
-}
-
-async function ensureUserClaim(env, username, player_id, nowSec) {
-  // If username exists with different owner -> conflict
-  const existing = await env.DB.prepare(
-    `SELECT player_id FROM users WHERE username = ? COLLATE NOCASE LIMIT 1`
-  ).bind(username).first();
-
-  if (existing?.player_id && existing.player_id !== player_id) {
-    return { ok: false, conflict: true };
-  }
-
-  // If not claimed yet, claim it
-  if (!existing?.player_id) {
-    await env.DB.prepare(
-      `INSERT INTO users (username, player_id, created_at) VALUES (?, ?, ?)`
-    ).bind(username, player_id, nowSec).run();
-  }
-
-  return { ok: true };
-}
-
-async function getRankWeekly(env, username, week_key) {
-  const row = await env.DB.prepare(
-    `
-    WITH lb AS (
-      SELECT username, MAX(score) AS score, MIN(created_at) AS created_at
-      FROM scores
-      WHERE week_key = ?
-      GROUP BY username
-    ),
-    ranked AS (
-      SELECT username, ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rnk
-      FROM lb
-    )
-    SELECT rnk FROM ranked WHERE username = ? COLLATE NOCASE
-    `
-  ).bind(week_key, username).first();
-  return row?.rnk ?? null;
-}
-
-async function getRankAllTime(env, username) {
-  const row = await env.DB.prepare(
-    `
-    WITH lb AS (
-      SELECT username, MAX(score) AS score, MIN(created_at) AS created_at
-      FROM scores
-      GROUP BY username
-    ),
-    ranked AS (
-      SELECT username, ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rnk
-      FROM lb
-    )
-    SELECT rnk FROM ranked WHERE username = ? COLLATE NOCASE
-    `
-  ).bind(username).first();
-  return row?.rnk ?? null;
-}
-
-export async function onRequestPost({ request, env }) {
-  let body = {};
-  try { body = await request.json(); }
-  catch { return json({ ok: false, error: "Invalid JSON" }, 400); }
-
-  const player_id = String(body.player_id ?? "").trim();
-  const score = Number(body.score);
-  const username = normalizeUsername(body.username);
-
-  if (!player_id) return json({ ok: false, error: "Missing player_id" }, 400);
-  if (!Number.isFinite(score) || score < 0 || score > 9999) return json({ ok: false, error: "Invalid score" }, 400);
-
-  if (!username) return json({ ok: false, error: "Missing username" }, 400);
-  if (!isUsernameValid(username)) return json({ ok: false, error: "Username must be 2–24 chars (A–Z, 0–9, space, _ . -)" }, 400);
-  if (containsProfanity(username)) return json({ ok: false, error: "Username not allowed" }, 400);
-
-  const nowSec = Math.floor(Date.now() / 1000);
-  const week_key = weekKeyUTC(Date.now());
-
-  // Enforce unique username ownership
-  const claim = await ensureUserClaim(env, username, player_id, nowSec);
-  if (!claim.ok && claim.conflict) return json({ ok: false, error: "Username not available" }, 409);
-
-  // Only record if it improves their weekly best (optional but keeps DB smaller)
-  const bestWeek = await env.DB.prepare(
-    `SELECT MAX(score) AS best FROM scores WHERE week_key = ? AND username = ? COLLATE NOCASE`
-  ).bind(week_key, username).first();
-
-  const prevBest = Number(bestWeek?.best ?? -1);
-  let didUpdateWeekly = false;
-
-  if (score > prevBest) {
-    await env.DB.prepare(
-      `INSERT INTO scores (player_id, username, score, created_at, week_key)
-       VALUES (?, ?, ?, ?, ?)`
-    ).bind(player_id, username, score, nowSec, week_key).run();
-    didUpdateWeekly = true;
-  }
-
-  const rank_weekly = await getRankWeekly(env, username, week_key);
-  const rank_alltime = await getRankAllTime(env, username);
-
-  return json({
-    ok: true,
-    username,
-    score,
-    week_key,
-    did_update_weekly: didUpdateWeekly,
-    rank_weekly,
-    rank_alltime,
-  });
-}
-function isUsernameValid(u) {
-  // allow letters, numbers, space, underscore, dash, dot
+  // letters, numbers, space, underscore, dash, dot (2–24 chars)
   return /^[A-Za-z0-9 _.\-]{2,24}$/.test(u);
 }
 
 // Lightweight profanity filter (expand as you like)
 const BANNED = [
-  "fuck","fuuck","fuuuck","fuuuuck","bitch","asshole","cunt","cuunt","cuuunt","cuuuunt","cuuuuunt","ccunt","cunnt","cuntt","cunttt","cuntttt","pussy","slut","whore",
-  "nigger","niggers","niggger","nigggers","nnigger","nniggers","faggot","retard","retards","porn","sex"
+  "fuck","fuuck","fuuuck","fuuuuck",
+  "bitch","asshole","cunt","cuunt","cuuunt","cuuuunt","cuuuuunt","ccunt","cunnt","cuntt","cunttt","cuntttt",
+  "pussy","slut","whore",
+  "nigger","niggers","niggger","nigggers","nnigger","nniggers",
+  "faggot","retard","retards",
+  "porn","sex"
 ];
 
 function containsProfanity(u) {
@@ -164,108 +55,119 @@ function containsProfanity(u) {
   return BANNED.some(w => s.includes(w));
 }
 
-// --- Best row helpers (NOTE: include id so updates are precise) ---
-async function getBestRowForUserWeek(env, username, week_key) {
-  const row = await env.DB.prepare(
-    `SELECT id, score, created_at
-     FROM scores
-     WHERE week_key = ? AND username = ? COLLATE NOCASE
-     ORDER BY score DESC, created_at ASC
-     LIMIT 1`
-  ).bind(week_key, username).first();
+async function ensureSchema(env) {
+  // Make sure these exist (safe to run repeatedly)
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS users (
+      username TEXT PRIMARY KEY COLLATE NOCASE,
+      player_id TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+  `).run();
 
-  return row || null;
+  // scores table should already exist, but we add helpful indexes/constraints.
+  // IMPORTANT: For ON CONFLICT(username, week_key) to work, we need a UNIQUE index.
+  await env.DB.prepare(`
+    CREATE UNIQUE INDEX IF NOT EXISTS scores_week_username
+    ON scores(week_key, username COLLATE NOCASE);
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE INDEX IF NOT EXISTS scores_username_idx
+    ON scores(username COLLATE NOCASE);
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE INDEX IF NOT EXISTS scores_week_idx
+    ON scores(week_key);
+  `).run();
 }
 
-async function getBestForUserAllTime(env, username) {
+async function claimOrCheckUsername(env, username, player_id, nowSec) {
+  // Claim if free; if already claimed, verify owner matches.
+  await env.DB.prepare(
+    `INSERT OR IGNORE INTO users (username, player_id, created_at) VALUES (?, ?, ?)`
+  ).bind(username, player_id, nowSec).run();
+
   const row = await env.DB.prepare(
-    `SELECT score, created_at
-     FROM scores
-     WHERE username = ? COLLATE NOCASE
-     ORDER BY score DESC, created_at ASC
-     LIMIT 1`
+    `SELECT player_id FROM users WHERE username = ? COLLATE NOCASE LIMIT 1`
   ).bind(username).first();
 
-  return row || null;
+  if (row?.player_id && row.player_id !== player_id) {
+    return { ok: false, error: "Username not available" };
+  }
+  return { ok: true };
 }
 
-async function getRankWeekly(env, username, week_key) {
+async function upsertWeeklyBest(env, username, player_id, score, nowSec, week_key) {
+  // Requires UNIQUE index on (week_key, username COLLATE NOCASE)
+  await env.DB.prepare(
+    `
+    INSERT INTO scores (player_id, username, score, created_at, week_key)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(week_key, username) DO UPDATE SET
+      score = CASE WHEN excluded.score > scores.score THEN excluded.score ELSE scores.score END,
+      created_at = CASE WHEN excluded.score > scores.score THEN excluded.created_at ELSE scores.created_at END,
+      player_id = CASE WHEN excluded.score > scores.score THEN excluded.player_id ELSE scores.player_id END
+    `
+  ).bind(player_id, username, score, nowSec, week_key).run();
+}
+
+async function getBestAllTime(env, username) {
   const row = await env.DB.prepare(
     `
+    SELECT MAX(score) AS score
+    FROM scores
+    WHERE username = ? COLLATE NOCASE
+    `
+  ).bind(username).first();
+  return row?.score ?? null;
+}
+
+async function getRanks(env, username, week_key) {
+  // Weekly rank over UNIQUE usernames (one row per username/week due to unique index)
+  const weekly = await env.DB.prepare(
+    `
     WITH lb AS (
-      SELECT username, MAX(score) AS score, MIN(created_at) AS created_at
+      SELECT username, score, created_at
       FROM scores
       WHERE week_key = ?
-      GROUP BY username
     ),
     ranked AS (
-      SELECT username, score,
-             ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rnk
+      SELECT
+        username,
+        ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rnk
       FROM lb
     )
     SELECT rnk FROM ranked WHERE username = ? COLLATE NOCASE
     `
   ).bind(week_key, username).first();
 
-  return row?.rnk ?? null;
-}
-
-async function getRankAllTime(env, username) {
-  const row = await env.DB.prepare(
+  // All-time rank using best score per username
+  const alltime = await env.DB.prepare(
     `
     WITH lb AS (
-      SELECT username, MAX(score) AS score, MIN(created_at) AS created_at
+      SELECT
+        username,
+        MAX(score) AS score,
+        MIN(created_at) AS created_at
       FROM scores
       GROUP BY username
     ),
     ranked AS (
-      SELECT username, score,
-             ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rnk
+      SELECT
+        username,
+        ROW_NUMBER() OVER (ORDER BY score DESC, created_at ASC) AS rnk
       FROM lb
     )
     SELECT rnk FROM ranked WHERE username = ? COLLATE NOCASE
     `
   ).bind(username).first();
 
-  return row?.rnk ?? null;
-}
-
-// --- Username ownership (make it real via users table if present) ---
-async function usernameOwner(env, username) {
-  // Prefer users table if it exists
-  try {
-    const u = await env.DB.prepare(
-      `SELECT player_id FROM users WHERE username = ? COLLATE NOCASE LIMIT 1`
-    ).bind(username).first();
-    if (u?.player_id) return u.player_id;
-  } catch {
-    // ignore; table may not exist
-  }
-
-  // Fallback: earliest score record
-  const s = await env.DB.prepare(
-    `SELECT player_id
-     FROM scores
-     WHERE username = ? COLLATE NOCASE
-     ORDER BY created_at ASC
-     LIMIT 1`
-  ).bind(username).first();
-
-  return s?.player_id ?? null;
-}
-
-async function claimUsername(env, username, player_id, nowSec) {
-  // If users table exists AND has username unique (recommended), this becomes atomic.
-  try {
-    await env.DB.prepare(
-      `INSERT INTO users (username, player_id, created_at)
-       VALUES (?, ?, ?)`
-    ).bind(username, player_id, nowSec).run();
-    return { ok: true, created: true };
-  } catch {
-    // Either table missing OR username already exists. We'll verify ownership next.
-    return { ok: false, created: false };
-  }
+  return {
+    rank_weekly: weekly?.rnk ?? null,
+    rank_alltime: alltime?.rnk ?? null,
+  };
 }
 
 export async function onRequestPost({ request, env }) {
@@ -277,12 +179,10 @@ export async function onRequestPost({ request, env }) {
   }
 
   const player_id = String(body.player_id ?? "").trim();
-  const scoreRaw = body.score;
-  let username = normalizeUsername(body.username);
+  const score = Number(body.score);
+  const username = normalizeUsername(body.username);
 
   if (!player_id) return json({ ok: false, error: "Missing player_id" }, 400);
-
-  const score = Number(scoreRaw);
   if (!Number.isFinite(score) || score < 0 || score > 9999) {
     return json({ ok: false, error: "Invalid score" }, 400);
   }
@@ -298,47 +198,25 @@ export async function onRequestPost({ request, env }) {
   const nowSec = Math.floor(Date.now() / 1000);
   const week_key = weekKeyUTC(Date.now());
 
-  // Best-effort claim (if users table exists)
-  await claimUsername(env, username, player_id, nowSec);
+  // Ensure tables/indexes are ready
+  await ensureSchema(env);
 
-  // Enforce ownership (case-insensitive)
-  const owner = await usernameOwner(env, username);
-  if (owner && owner !== player_id) {
-    return json({ ok: false, error: "Username not available" }, 409);
-  }
+  // Unique username ownership
+  const claim = await claimOrCheckUsername(env, username, player_id, nowSec);
+  if (!claim.ok) return json({ ok: false, error: claim.error }, 409);
 
-  // Upsert best score for THIS WEEK (keep best only)
-  const existingBestRow = await getBestRowForUserWeek(env, username, week_key);
-  let didUpdateWeekly = false;
+  // Store weekly best automatically
+  await upsertWeeklyBest(env, username, player_id, score, nowSec, week_key);
 
-  if (!existingBestRow) {
-    await env.DB.prepare(
-      `INSERT INTO scores (player_id, username, score, created_at, week_key)
-       VALUES (?, ?, ?, ?, ?)`
-    ).bind(player_id, username, score, nowSec, week_key).run();
-    didUpdateWeekly = true;
-  } else if (score > existingBestRow.score) {
-    // Update EXACT row by id (prevents weirdness if there are duplicates)
-    await env.DB.prepare(
-      `UPDATE scores
-       SET score = ?, created_at = ?, player_id = ?
-       WHERE id = ?`
-    ).bind(score, nowSec, player_id, existingBestRow.id).run();
-    didUpdateWeekly = true;
-  }
-
-  const bestAll = await getBestForUserAllTime(env, username);
-  const rank_weekly = await getRankWeekly(env, username, week_key);
-  const rank_alltime = await getRankAllTime(env, username);
+  const best_all_time = await getBestAllTime(env, username);
+  const ranks = await getRanks(env, username, week_key);
 
   return json({
     ok: true,
     username,
     score,
     week_key,
-    did_update_weekly: didUpdateWeekly,
-    best_all_time: bestAll?.score ?? score,
-    rank_weekly,
-    rank_alltime,
+    best_all_time: best_all_time ?? score,
+    ...ranks,
   });
 }
