@@ -13,6 +13,7 @@ function json(data, status = 200) {
 }
 
 function weekKeyUTC(ms) {
+  // Monday 00:00 UTC as YYYY-MM-DD
   const d = new Date(ms);
   const day = d.getUTCDay(); // 0=Sun
   const diff = (day === 0 ? -6 : 1 - day);
@@ -29,9 +30,11 @@ function normalizeUsername(raw) {
 }
 
 function isUsernameValid(u) {
+  // letters, numbers, space, underscore, dash, dot (2–24 chars)
   return /^[A-Za-z0-9 _.\-]{2,24}$/.test(u);
 }
 
+// Lightweight profanity filter (expand as you like)
 const BANNED = [
   "fuck","fuuck","fuuuck","fuuuuck",
   "bitch","asshole","cunt","cuunt","cuuunt","cuuuunt","cuuuuunt","ccunt","cunnt","cuntt","cunttt","cuntttt",
@@ -164,18 +167,16 @@ export async function onRequestPost({ request, env }) {
 
   const player_id = String(body.player_id ?? "").trim();
   const username = normalizeUsername(body.username);
-
-  // compute score ONCE
-  const score = Number(body.score);
+  const scoreRaw = body.score;
+  const score = Number(scoreRaw);
 
   if (!player_id) return json({ ok: false, error: "Missing player_id" }, 400);
 
-  // validate score
   if (!Number.isFinite(score) || score < 0 || score > 9999) {
     return json({ ok: false, error: "Invalid score" }, 400);
   }
 
-  // server-side ignore zero scores
+  // Ignore zero scores (don’t write to DB / don’t show on leaderboard)
   if (score === 0) {
     return json({ ok: true, ignored: true, message: "Zero score not recorded." }, 200);
   }
