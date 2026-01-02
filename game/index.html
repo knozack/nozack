@@ -3,66 +3,105 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0f14" />
+  <meta name="theme-color" content="#f9fafb" />
   <title>BLT.STREAM</title>
   <style>
-    :root { color-scheme: dark; }
-    html, body { margin: 0; height: 100%; background:#0b0f14; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    body { overscroll-behavior: none; }
-    #wrap { height: 100%; display:flex; align-items:center; justify-content:center; padding: 10px; box-sizing:border-box; }
-    canvas { width:min(920px, 100%); height:min(700px, calc(100vh - 20px)); display:block; border-radius:16px; box-shadow: 0 12px 40px rgba(0,0,0,.55); background: linear-gradient(180deg, #0f1620 0%, #0c1726 40%, #0a0f16 100%); touch-action: manipulation; }
+    :root { color-scheme: light; }
 
-    .hud {
+    html, body {
+      margin: 0;
+      height: 100%;
+      background:#f9fafb;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: #0a0a0a;
+    }
+    body { overscroll-behavior: none; }
+
+    #wrap {
+      height: 100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding: 10px;
+      box-sizing:border-box;
+    }
+
+    canvas{
+      width:min(920px, 100%);
+      height:min(700px, calc(100vh - 20px));
+      display:block;
+      border-radius:16px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.10);
+      background: #f9fafb;
+      touch-action: manipulation;
+    }
+
+    .hud{
       position: fixed; top: 12px; left: 12px; right: 12px;
       display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start; justify-content:space-between;
       pointer-events:none;
     }
-    .pill {
+
+    .pill{
       pointer-events:none;
-      padding:10px 12px; border-radius:999px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
+      padding:10px 12px;
+      border-radius:999px;
+      background: rgba(10,10,10,0.04);
+      border: 1px solid rgba(10,10,10,0.10);
       backdrop-filter: blur(10px);
-      color: rgba(255,255,255,0.92);
+      color: rgba(10,10,10,0.88);
       font-size: 14px;
       display:flex; gap:10px; align-items:center;
     }
-    .muted { color: rgba(255,255,255,0.65); }
-    .kbd { padding: 2px 6px; border-radius: 8px; border:1px solid rgba(255,255,255,0.18); background: rgba(255,255,255,0.06); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+    .muted{ color: rgba(10,10,10,0.55); }
+    .kbd{
+      padding: 2px 6px; border-radius: 8px;
+      border:1px solid rgba(10,10,10,0.18);
+      background: rgba(10,10,10,0.04);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: rgba(10,10,10,0.74);
+    }
 
     /* UI that needs pointer events */
-    .ui {
+    .ui{
       pointer-events:auto;
       display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap; justify-content:flex-end;
     }
+
     input[type="text"]{
       width: 160px;
       padding: 10px 12px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.06);
-      color: rgba(255,255,255,0.92);
+      border: 1px solid rgba(10,10,10,0.16);
+      background: rgba(255,255,255,0.92);
+      color: rgba(10,10,10,0.90);
       outline: none;
     }
+    input[type="text"]:focus{
+      border-color: rgba(0,145,255,0.55);
+      box-shadow: 0 0 0 3px rgba(0,145,255,0.12);
+    }
+
     button{
       padding: 10px 12px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.06);
-      color: rgba(255,255,255,0.92);
+      border: 1px solid rgba(10,10,10,0.16);
+      background: rgba(255,255,255,0.92);
+      color: rgba(10,10,10,0.84);
       cursor: pointer;
       user-select:none;
       -webkit-tap-highlight-color: transparent;
     }
-    button:hover{ background: rgba(255,255,255,0.09); }
+    button:hover{ background: rgba(255,255,255,1); }
 
-    .err { font-size: 12px; color: rgba(255,120,120,0.92); padding-left: 10px; }
-    .ok  { font-size: 12px; color: rgba(130,255,190,0.92); padding-left: 10px; }
+    .err { font-size: 12px; color: rgba(210,60,60,0.92); padding-left: 10px; }
+    .ok  { font-size: 12px; color: rgba(0,140,90,0.92); padding-left: 10px; }
 
     /* Modal */
     .modalBackdrop{
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.55);
+      background: rgba(0,0,0,0.22);
       display:none;
       align-items:center;
       justify-content:center;
@@ -74,40 +113,55 @@
       width: min(760px, calc(100vw - 24px));
       max-height: min(560px, calc(100vh - 24px));
       overflow:auto;
-      background: rgba(12, 16, 22, 0.92);
-      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(249,250,251,0.96);
+      border: 1px solid rgba(10,10,10,0.12);
       border-radius: 18px;
-      box-shadow: 0 18px 70px rgba(0,0,0,0.6);
+      box-shadow: 0 18px 70px rgba(0,0,0,0.12);
       padding: 16px;
+      color: rgba(10,10,10,0.90);
     }
-    .row{ display:flex; justify-content:space-between; gap:10px; padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .row{
+      display:flex; justify-content:space-between; gap:10px;
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(10,10,10,0.08);
+    }
     .row:last-child{ border-bottom:none; }
-    .small{ font-size: 12px; color: rgba(255,255,255,0.68); }
+    .small{ font-size: 12px; color: rgba(10,10,10,0.62); }
 
     .tabs{ display:flex; gap:8px; margin-top:10px; }
     .tab{
       pointer-events:auto;
       padding: 8px 10px;
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.12);
-      background: rgba(255,255,255,0.06);
-      color: rgba(255,255,255,0.90);
+      border: 1px solid rgba(10,10,10,0.14);
+      background: rgba(10,10,10,0.04);
+      color: rgba(10,10,10,0.82);
       font-size: 12px;
       cursor:pointer;
       user-select:none;
     }
     .tab--active{
-      background: rgba(255,255,255,0.12);
-      border-color: rgba(255,255,255,0.18);
+      background: rgba(0,145,255,0.10);
+      border-color: rgba(0,145,255,0.22);
+      color: rgba(10,10,10,0.90);
     }
   </style>
 </head>
+
 <body>
   <div class="hud">
-    <div class="pill"><strong>BLT.STREAM</strong> <span class="muted">tap/click or</span> <span class="kbd">Space</span> <span class="muted">to drop or start again</span></div>
+    <div class="pill">
+      <strong>BLT.STREAM</strong>
+      <span class="muted">tap/click or</span>
+      <span class="kbd">Space</span>
+      <span class="muted">to drop or start again</span>
+    </div>
 
     <div class="ui">
-      <div class="pill"><span class="muted">Height</span> <strong id="score">0</strong> <span class="muted">• Best</span> <strong id="best">0</strong></div>
+      <div class="pill">
+        <span class="muted">Height</span> <strong id="score">0</strong>
+        <span class="muted">• Best</span> <strong id="best">0</strong>
+      </div>
 
       <div style="display:flex; flex-direction:column; gap:6px;">
         <input id="name" type="text" maxlength="24" aria-label="Username" />
@@ -150,14 +204,20 @@
 (() => {
   document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
 
+  // --- Theme constants (your requested palette) ---
+  const BG = '#f9fafb';
+  const GRID = '#d6dbe3';
+  const BLUE_1 = '#00b7ff'; // <= 20
+  const BLUE_2 = '#0091ff'; // >= 21
+  const RADIUS = 14;
+
   // --- Canvas setup ---
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
 
-  // Keep a stable DPR so overlay text sizing is consistent across browsers (Safari fix)
+  // Keep stable DPR so overlay sizing is consistent across browsers (Safari fix)
   let DPR = 1;
 
-  // Simple mobile heuristic used for fireworks intensity too
   const isMobile = window.matchMedia && window.matchMedia('(max-width: 560px)').matches;
 
   function fitCanvasToCSS(){
@@ -175,20 +235,20 @@
   window.addEventListener('resize', fitCanvasToCSS, { passive: true });
 
   const scoreEl = document.getElementById('score');
-  const bestEl = document.getElementById('best');
+  const bestEl  = document.getElementById('best');
 
   // UI
   const nameInput = document.getElementById('name');
-  const nameErr = document.getElementById('nameErr');
-  const nameOk  = document.getElementById('nameOk');
-  const muteBtn = document.getElementById('muteBtn');
-  const lbBtn = document.getElementById('lbBtn');
+  const nameErr   = document.getElementById('nameErr');
+  const nameOk    = document.getElementById('nameOk');
+  const muteBtn   = document.getElementById('muteBtn');
+  const lbBtn     = document.getElementById('lbBtn');
   const modalBackdrop = document.getElementById('modalBackdrop');
-  const closeModal = document.getElementById('closeModal');
+  const closeModal    = document.getElementById('closeModal');
   const lbList = document.getElementById('lbList');
   const lbHint = document.getElementById('lbHint');
   const tabWeekly = document.getElementById('tabWeekly');
-  const tabAll = document.getElementById('tabAll');
+  const tabAll    = document.getElementById('tabAll');
 
   function setNameError(msg){
     nameOk.style.display = 'none'; nameOk.textContent = '';
@@ -281,7 +341,7 @@
     const sy = H / LOGICAL_H;
     const baseScale = Math.min(sx, sy);
 
-    // Mobile boost so the action fills more of the screen
+    // keep your “fill more of screen” boost on mobile
     const s = isMobile ? (baseScale * 1.20) : baseScale;
 
     const ox = (W - LOGICAL_W*s) / 2;
@@ -293,16 +353,16 @@
   function endScene(){ ctx.restore(); }
 
   const GROUND_Y = LOGICAL_H - 70;
-  const SLAB_H = 26;
-  const GRAVITY = 2400;
+  const SLAB_H   = 26;
+  const GRAVITY  = 2400;
 
   const BASE_SPEED = 220;
   const SPEED_GAIN = 9.5;
-  const MAX_SPEED = 980;
+  const MAX_SPEED  = 980;
   const ERRATIC_START_AT = 8;
-  const ERRATIC_GAIN = 5.5;
+  const ERRATIC_GAIN     = 5.5;
 
-  const CAM_SMOOTH = 0.16;
+  const CAM_SMOOTH   = 0.16;
   const VIEW_TARGET_Y = 170;
 
   // --- State ---
@@ -314,8 +374,24 @@
   bestEl.textContent = best;
 
   // --- Utils ---
-  const rand = (a, b) => a + Math.random() * (b - a);
+  const rand  = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  function hexToRgb(hex){
+    const h = hex.replace('#','').trim();
+    const n = parseInt(h.length === 3 ? h.split('').map(c=>c+c).join('') : h, 16);
+    return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
+  }
+  function rgba(hex, a){
+    const {r,g,b} = hexToRgb(hex);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  function darken(hex, amount=0.18){
+    const {r,g,b} = hexToRgb(hex);
+    const k = (x)=> Math.max(0, Math.min(255, Math.round(x*(1-amount))));
+    const rr = k(r), gg = k(g), bb = k(b);
+    return `rgb(${rr},${gg},${bb})`;
+  }
 
   // --- Username ---
   function genName(){
@@ -334,9 +410,9 @@
   }
 
   // Prevent typing in the name field from controlling the game
-nameInput.addEventListener('keydown', (e) => {
-  e.stopPropagation(); // stops window keydown handler from seeing these keys
-}, { passive: false });
+  nameInput.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+  }, { passive: false });
 
   nameInput.addEventListener('change', () => {
     let v = normalizeName(nameInput.value);
@@ -371,7 +447,7 @@ nameInput.addEventListener('keydown', (e) => {
   }
 
   // --- Modal render ---
-  let lbMode = "weekly"; // or "all"
+  let lbMode = "weekly";
   let cachedLB = null;
 
   function setTabUI(){
@@ -395,7 +471,7 @@ nameInput.addEventListener('keydown', (e) => {
       row.className = 'row';
       const left = document.createElement('div');
       const isMe = (normalizeName(r.username) === me);
-      left.innerHTML = `<strong>#${i+1}</strong> <span style="margin-left:8px;${isMe?'color:rgba(255,255,255,0.98)':''}">${escapeHtml(r.username)}</span>`;
+      left.innerHTML = `<strong>#${i+1}</strong> <span style="margin-left:8px;${isMe?'color:rgba(10,10,10,0.92)':''}">${escapeHtml(r.username)}</span>`;
       const right = document.createElement('div');
       right.innerHTML = `<strong>${r.score}</strong>`;
       row.appendChild(left);
@@ -509,29 +585,25 @@ nameInput.addEventListener('keydown', (e) => {
     localStorage.setItem('blt_name', username);
 
     // Don’t submit zero scores
-if (score === 0) {
-  setNameOk('');   // or: setNameOk('Play again to post a score.');
-  return;
-}
-    
+    if (score === 0) {
+      setNameOk('');
+      return;
+    }
+
     // Auto-submit score to shared leaderboard
     try {
       const data = await submitScore(username, score);
 
-      // Placement feedback
       const wk = data.rank_weekly ? `Weekly #${data.rank_weekly}` : null;
       const at = data.rank_alltime ? `All-time #${data.rank_alltime}` : null;
       const msg = [wk, at].filter(Boolean).join(' • ');
       if (msg) setNameOk(msg);
       else setNameOk('Score submitted.');
 
-      cachedLB = null; // force refresh next time modal opens
+      cachedLB = null;
     } catch (e) {
-      if (e?.status === 409) {
-        setNameError('Username not available');
-      } else {
-        setNameError(e?.message || 'Could not submit score');
-      }
+      if (e?.status === 409) setNameError('Username not available');
+      else setNameError(e?.message || 'Could not submit score');
     }
   }
 
@@ -543,28 +615,30 @@ if (score === 0) {
 
   const debris = [];
 
-  // Celebration (Level 20)
+  // --- Celebration (Level 20) ---
   let celebrateUntil = 0;
   const fireworks = [];
 
   function launchFireworks(y){
-    const colors = ['rgba(120,190,255,','rgba(80,220,200,','rgba(180,140,255,','rgba(255,180,120,'];
+    // multi-color on white bg
+    const colors = [
+      '#ff4d6d', '#ffb703', '#00b7ff', '#0091ff',
+      '#7c5cff', '#2dd4bf', '#22c55e', '#f97316'
+    ];
 
-    // 🔥 More intense on mobile
-    const bursts = isMobile ? 12 : 8;
-    const particlesPerBurst = isMobile ? 34 : 22;
+    const bursts = isMobile ? 14 : 10;
+    const particlesPerBurst = isMobile ? 40 : 26;
 
     for (let b = 0; b < bursts; b++) {
       const cx = rand(90, LOGICAL_W-90);
-      const cy = y - rand(60, 190);
-
+      const cy = y - rand(80, 210);
       const base = colors[Math.floor(Math.random()*colors.length)];
 
       for (let i = 0; i < particlesPerBurst; i++) {
         const a = rand(0, Math.PI*2);
-        const sp = isMobile ? rand(220, 560) : rand(140, 380);
-        const lift = isMobile ? rand(120, 260) : rand(80, 180);
-        const life = isMobile ? rand(0.95, 1.65) : rand(0.7, 1.2);
+        const sp = isMobile ? rand(240, 620) : rand(160, 420);
+        const lift = isMobile ? rand(140, 300) : rand(90, 210);
+        const life = isMobile ? rand(1.05, 1.85) : rand(0.8, 1.3);
 
         fireworks.push({
           x: cx, y: cy,
@@ -580,24 +654,24 @@ if (score === 0) {
   function drawFireworks(){
     if (!fireworks.length) return;
 
-    const r = isMobile ? 3.2 : 2.2; // bigger particles on mobile
+    const r = isMobile ? 3.4 : 2.4;
 
     ctx.save();
     for (const f of fireworks) {
       const a = clamp(f.life, 0, 1);
       ctx.globalAlpha = a;
 
-      ctx.fillStyle = `${f.color}${0.95})`;
+      ctx.fillStyle = rgba(f.color, 0.95);
       ctx.beginPath();
       ctx.arc(f.x, f.y, r, 0, Math.PI*2);
       ctx.fill();
 
-      // slightly longer tail on mobile
-      ctx.globalAlpha = a * 0.55;
-      ctx.strokeStyle = `${f.color}${0.85})`;
+      // tail
+      ctx.globalAlpha = a * 0.50;
+      ctx.strokeStyle = rgba(f.color, 0.85);
       ctx.lineWidth = 1;
 
-      const tail = isMobile ? 0.022 : 0.015;
+      const tail = isMobile ? 0.024 : 0.016;
       ctx.beginPath();
       ctx.moveTo(f.x, f.y);
       ctx.lineTo(f.x - f.vx * tail, f.y - f.vy * tail);
@@ -620,7 +694,6 @@ if (score === 0) {
 
   function resolveLanding() {
     const prev = stack[stack.length - 1];
-
     const ov = intersect1D(current.x, current.x + current.w, prev.x, prev.x + prev.w);
     if (!ov) { gameOver(); return; }
 
@@ -633,9 +706,8 @@ if (score === 0) {
     scoreEl.textContent = score;
 
     if (score === 20) {
-      celebrateUntil = performance.now() + (isMobile ? 2200 : 1600);
+      celebrateUntil = performance.now() + (isMobile ? 2400 : 1800);
       launchFireworks(newSlab.y);
-
       beep({freq: 660, dur:0.05, gain:0.03});
       beep({freq: 880, dur:0.06, gain:0.02});
       if (isMobile) beep({freq: 990, dur:0.05, gain:0.02});
@@ -649,13 +721,12 @@ if (score === 0) {
 
   // Input
   window.addEventListener('keydown', (e) => {
-  // If user is typing in an input, ignore game controls
-  const ae = document.activeElement;
-  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
+    const ae = document.activeElement;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
 
-  if (e.code === 'Space') { e.preventDefault(); drop(); }
-  if (e.key.toLowerCase() === 'r') reset();
-}, { passive: false });
+    if (e.code === 'Space') { e.preventDefault(); drop(); }
+    if (e.key.toLowerCase() === 'r') reset();
+  }, { passive: false });
 
   canvas.addEventListener('pointerdown', () => drop(), { passive: true });
 
@@ -665,16 +736,16 @@ if (score === 0) {
   function update(dt) {
     for (let i = debris.length - 1; i >= 0; i--) {
       const d = debris[i];
-      d.vy += 2400 * dt;
+      d.vy += GRAVITY * dt;
       d.x += d.vx * dt;
       d.y += d.vy * dt;
       d.life -= dt * 0.9;
-      if (d.life <= 0 || d.y > 700 + 400) debris.splice(i, 1);
+      if (d.life <= 0 || d.y > LOGICAL_H + 400) debris.splice(i, 1);
     }
 
     for (let i = fireworks.length - 1; i >= 0; i--) {
       const f = fireworks[i];
-      f.vy += (2400 * 0.45) * dt;
+      f.vy += (GRAVITY * 0.45) * dt;
       f.x += f.vx * dt;
       f.y += f.vy * dt;
       f.life -= dt;
@@ -688,11 +759,11 @@ if (score === 0) {
     if (current.state === 'moving') {
       current.x += current.vx * dt;
 
-      const baseAt20 = 220 + 9.5 * 20;
+      const baseAt20 = BASE_SPEED + SPEED_GAIN * 20;
       const base = (score < 20)
-        ? (220 + 9.5 * score)
-        : (baseAt20 * 0.5 + 9.5 * (score - 20));
-      const max = clamp(base + 420 + score*8, 300, 980);
+        ? (BASE_SPEED + SPEED_GAIN * score)
+        : (baseAt20 * 0.5 + SPEED_GAIN * (score - 20));
+      const max = clamp(base + 420 + score*8, 300, MAX_SPEED);
 
       const sinBias = Math.sin(current.t * current.jitterFreq + current.jitterPhase) * current.jitterStrength;
       const walk = rand(-1, 1) * current.jitterStrength * 0.9;
@@ -704,30 +775,49 @@ if (score === 0) {
         current.x = -current.w - 80;
         current.vx = Math.abs(current.vx) * rand(0.85, 1.08);
       }
-      if (current.x > 920 + 80) {
-        current.x = 920 + 80;
+      if (current.x > LOGICAL_W + 80) {
+        current.x = LOGICAL_W + 80;
         current.vx = -Math.abs(current.vx) * rand(0.85, 1.08);
       }
     } else if (current.state === 'dropping') {
-      current.vy += 2400 * dt;
+      current.vy += GRAVITY * dt;
       current.y += current.vy * dt;
 
       const top = stack[stack.length - 1];
-      const landingY = top.y - 26;
+      const landingY = top.y - SLAB_H;
       if (current.y >= landingY) {
         current.y = landingY;
         resolveLanding();
       }
     }
 
-    const focusY = current ? current.y : (stack[stack.length-1]?.y ?? (700 - 70));
-    const desired = (170 - focusY);
-    cam += (desired - cam) * 0.16;
+    const focusY = current ? current.y : (stack[stack.length-1]?.y ?? GROUND_Y);
+    const desired = (VIEW_TARGET_Y - focusY);
+    cam += (desired - cam) * CAM_SMOOTH;
+  }
+
+  // Rounded rect helper
+  function roundRectPath(x, y, w, h, r){
+    const rr = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
   }
 
   function draw() {
     const rect = canvas.getBoundingClientRect();
     ctx.clearRect(0, 0, rect.width, rect.height);
+
+    // fill background (consistent on all browsers)
+    ctx.save();
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.restore();
 
     beginScene();
     ctx.save();
@@ -735,86 +825,110 @@ if (score === 0) {
 
     drawGrid();
 
-    ctx.fillStyle = 'rgba(255,255,255,0.05)';
-    ctx.fillRect(0, (700 - 70) + 26, 920, 6);
+    // ground marker (subtle)
+    ctx.fillStyle = rgba(GRID, 0.40);
+    ctx.fillRect(0, GROUND_Y + SLAB_H, LOGICAL_W, 3);
 
     for (let i = 0; i < stack.length; i++) {
       const s = stack[i];
-      drawSlab(s.x, s.y, s.w, s.h, 0.14 + i*0.001, s.level || 0);
+      drawSlab(s.x, s.y, s.w, s.h, 1, s.level || 0);
     }
 
     for (const d of debris) {
-      ctx.globalAlpha = clamp(d.life, 0, 1);
-      drawSlab(d.x - d.w/2, d.y - d.h/2, d.w, d.h, 0.12);
+      ctx.globalAlpha = clamp(d.life, 0, 1) * 0.75;
+      drawSlab(d.x - d.w/2, d.y - d.h/2, d.w, d.h, 1, 0);
       ctx.globalAlpha = 1;
     }
 
     if (current && current.state !== 'gameover') {
-      drawSlab(current.x, current.y, current.w, current.h, 0.24, current.level || 0);
+      drawSlab(current.x, current.y, current.w, current.h, 1, current.level || 0);
     }
 
-    // Fireworks (scene space)
+    // fireworks (scene space)
     drawFireworks();
 
     ctx.restore();
     endScene();
 
-    // ---- Overlays (draw in CSS pixels, DPR-aware) ----
+    // --- Overlays (draw in CSS pixels, DPR-aware) ---
     const nowMs = performance.now();
 
+    // A gentle “fade grid behind overlays” treatment:
+    // we draw a semi-opaque BG wash instead of a harsh dark veil.
+    function overlayWash(alpha){
+      ctx.save();
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      const r2 = canvas.getBoundingClientRect();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = rgba(BG, 1); // use BG color, alpha via globalAlpha
+      ctx.fillRect(0, 0, r2.width, r2.height);
+      ctx.restore();
+    }
+
     if (nowMs < celebrateUntil) {
+      overlayWash(0.55);
+
       ctx.save();
       ctx.setTransform(DPR,0,0,DPR,0,0);
 
       const rect2 = canvas.getBoundingClientRect();
-
-      const t = 1 - ((celebrateUntil - nowMs) / (isMobile ? 2200 : 1600));
+      const t = 1 - ((celebrateUntil - nowMs) / (isMobile ? 2400 : 1800));
       const alpha = t < 0.15 ? (t/0.15) : (t > 0.85 ? ((1-t)/0.15) : 1);
       ctx.globalAlpha = clamp(alpha, 0, 1);
 
-      ctx.fillStyle = 'rgba(10,16,24,0.58)';
-
       const pad = 16;
-      const w = Math.min(rect2.width - pad*2, 720);
-      const h = Math.max(76, Math.min(120, rect2.height * 0.16));
+      const w = Math.min(rect2.width - pad*2, 760);
+      const h = Math.max(86, Math.min(140, rect2.height * 0.18));
       const x = (rect2.width - w)/2;
-      const y = Math.max(22, rect2.height * 0.10);
+      const y = Math.max(18, rect2.height * 0.10);
 
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillStyle = rgba(BG, 0.92);
+      ctx.strokeStyle = rgba(GRID, 0.95);
       ctx.lineWidth = 1;
-      ctx.strokeRect(x, y, w, h);
 
-      const titleSize = clamp(rect2.width * 0.050, 22, 44);
-      ctx.fillStyle = 'rgba(255,255,255,0.94)';
+      ctx.beginPath();
+      // rounded overlay box
+      const rr = Math.min(18, h/2);
+      ctx.moveTo(x+rr, y);
+      ctx.arcTo(x+w, y, x+w, y+h, rr);
+      ctx.arcTo(x+w, y+h, x, y+h, rr);
+      ctx.arcTo(x, y+h, x, y, rr);
+      ctx.arcTo(x, y, x+w, y, rr);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      const titleSize = clamp(rect2.width * 0.050, 22, 46);
+      ctx.fillStyle = 'rgba(10,10,10,0.92)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `800 ${titleSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.font = `700 ${titleSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
       ctx.fillText('You Reached Level 20!', rect2.width/2, y + h/2);
 
       ctx.restore();
     }
 
     if (current && current.state === 'gameover') {
+      overlayWash(0.62);
+
       ctx.save();
       ctx.setTransform(DPR,0,0,DPR,0,0);
 
       const rect2 = canvas.getBoundingClientRect();
 
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(0, 0, rect2.width, rect2.height);
-
       const titleSize = clamp(rect2.width * 0.065, 28, 64);
       const subSize   = clamp(rect2.width * 0.024, 14, 22);
 
-      ctx.fillStyle = 'rgba(255,255,255,0.94)';
+      ctx.fillStyle = 'rgba(10,10,10,0.92)';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.font = `900 ${titleSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+
+      // ONLY change here: reduced boldness vs your last version
+      ctx.font = `700 ${titleSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
       ctx.fillText('Out of Tolerance', rect2.width/2, rect2.height/2 - titleSize*0.15);
 
       ctx.font = `600 ${subSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-      ctx.fillStyle = 'rgba(255,255,255,0.76)';
+      ctx.fillStyle = 'rgba(10,10,10,0.62)';
       ctx.fillText('Tap/click or press Space to try again', rect2.width/2, rect2.height/2 + titleSize*0.55);
 
       ctx.restore();
@@ -824,22 +938,23 @@ if (score === 0) {
   function drawGrid() {
     const step = 40;
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.035)';
-    ctx.lineWidth = 1;
+
+    ctx.strokeStyle = rgba(GRID, 0.95);
+    ctx.lineWidth = 0.5; // requested 0.5px thickness (in logical space; looks right after scaling)
 
     const y0 = -cam;
-    const y1 = -cam + 700;
+    const y1 = -cam + LOGICAL_H;
     const startY = Math.floor((y0 - 200) / step) * step;
-    const endY = Math.ceil((y1 + 200) / step) * step;
+    const endY   = Math.ceil((y1 + 200) / step) * step;
 
     for (let y = startY; y <= endY; y += step) {
       ctx.beginPath();
       ctx.moveTo(0, y);
-      ctx.lineTo(920, y);
+      ctx.lineTo(LOGICAL_W, y);
       ctx.stroke();
     }
 
-    for (let x = 0; x <= 920; x += step) {
+    for (let x = 0; x <= LOGICAL_W; x += step) {
       ctx.beginPath();
       ctx.moveTo(x, y0 - 200);
       ctx.lineTo(x, y1 + 200);
@@ -849,20 +964,23 @@ if (score === 0) {
     ctx.restore();
   }
 
-  function drawSlab(x, y, w, h, alpha = 0.2, level = 0) {
+  function drawSlab(x, y, w, h, alpha = 1, level = 0) {
     ctx.save();
-    if (level >= 21) {
-      const g = ctx.createLinearGradient(x, y, x, y + h);
-      g.addColorStop(0, `rgba(120, 190, 255, ${alpha})`);
-      g.addColorStop(1, `rgba(70, 140, 230, ${alpha})`);
-      ctx.fillStyle = g;
-    } else {
-      ctx.fillStyle = `rgba(210, 230, 255, ${alpha})`;
-    }
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+
+    const fillHex = (level >= 21) ? BLUE_2 : BLUE_1;
+
+    // Fill (solid, same for flying + landed)
+    ctx.fillStyle = rgba(fillHex, 0.92 * alpha);
+
+    // Outline: same hue, slightly darker + a bit lower alpha than fill
+    ctx.strokeStyle = `rgba(${hexToRgb(darken(fillHex, 0.18)).r},${hexToRgb(darken(fillHex, 0.18)).g},${hexToRgb(darken(fillHex, 0.18)).b},${0.70 * alpha})`;
+
     ctx.lineWidth = 1;
-    ctx.strokeRect(x, y, w, h);
+
+    roundRectPath(x, y, w, h, RADIUS);
+    ctx.fill();
+    ctx.stroke();
+
     ctx.restore();
   }
 
