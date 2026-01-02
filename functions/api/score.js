@@ -1,12 +1,6 @@
 // functions/api/score.js
 // POST /api/score
 // Body: { username, score, player_id }
-//
-// Rules:
-// - profanity blocked
-// - username unique (case-insensitive): same username cannot be claimed by different player_id
-// - weekly leaderboard: one row per (week_key, username), keeps BEST score
-// - placement returned for weekly + all-time
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -19,7 +13,6 @@ function json(data, status = 200) {
 }
 
 function weekKeyUTC(ms) {
-  // Monday 00:00 UTC as YYYY-MM-DD
   const d = new Date(ms);
   const day = d.getUTCDay(); // 0=Sun
   const diff = (day === 0 ? -6 : 1 - day);
@@ -36,11 +29,9 @@ function normalizeUsername(raw) {
 }
 
 function isUsernameValid(u) {
-  // letters, numbers, space, underscore, dash, dot (2–24 chars)
   return /^[A-Za-z0-9 _.\-]{2,24}$/.test(u);
 }
 
-// Lightweight profanity filter (expand as you like)
 const BANNED = [
   "fuck","fuuck","fuuuck","fuuuuck",
   "bitch","asshole","cunt","cuunt","cuuunt","cuuuunt","cuuuuunt","ccunt","cunnt","cuntt","cunttt","cuntttt",
@@ -56,7 +47,6 @@ function containsProfanity(u) {
 }
 
 async function ensureSchema(env) {
-  // Make sure these exist (safe to run repeatedly)
   await env.DB.prepare(`
     CREATE TABLE IF NOT EXISTS users (
       username TEXT PRIMARY KEY COLLATE NOCASE,
@@ -65,8 +55,6 @@ async function ensureSchema(env) {
     );
   `).run();
 
-  // scores table should already exist, but we add helpful indexes/constraints.
-  // IMPORTANT: For ON CONFLICT(username, week_key) to work, we need a UNIQUE index.
   await env.DB.prepare(`
     CREATE UNIQUE INDEX IF NOT EXISTS scores_week_username
     ON scores(week_key, username COLLATE NOCASE);
@@ -84,7 +72,6 @@ async function ensureSchema(env) {
 }
 
 async function claimOrCheckUsername(env, username, player_id, nowSec) {
-  // Claim if free; if already claimed, verify owner matches.
   await env.DB.prepare(
     `INSERT OR IGNORE INTO users (username, player_id, created_at) VALUES (?, ?, ?)`
   ).bind(username, player_id, nowSec).run();
@@ -100,7 +87,6 @@ async function claimOrCheckUsername(env, username, player_id, nowSec) {
 }
 
 async function upsertWeeklyBest(env, username, player_id, score, nowSec, week_key) {
-  // Requires UNIQUE index on (week_key, username COLLATE NOCASE)
   await env.DB.prepare(
     `
     INSERT INTO scores (player_id, username, score, created_at, week_key)
@@ -125,7 +111,6 @@ async function getBestAllTime(env, username) {
 }
 
 async function getRanks(env, username, week_key) {
-  // Weekly rank over UNIQUE usernames (one row per username/week due to unique index)
   const weekly = await env.DB.prepare(
     `
     WITH lb AS (
@@ -143,7 +128,6 @@ async function getRanks(env, username, week_key) {
     `
   ).bind(week_key, username).first();
 
-  // All-time rank using best score per username
   const alltime = await env.DB.prepare(
     `
     WITH lb AS (
@@ -179,24 +163,22 @@ export async function onRequestPost({ request, env }) {
   }
 
   const player_id = String(body.player_id ?? "").trim();
-  const score = Number(body.score);
   const username = normalizeUsername(body.username);
 
-  if (!player_id) return json({ ok: false, error: "Missing player_id" }, 400);
-  
-  const score = Number(scoreRaw);
-if (!Number.isFinite(score) || score < 0 || score > 9999) {
-  return json({ ok: false, error: "Invalid score" }, 400);
-}
+  // compute score ONCE
+  const score = Number(body.score);
 
-// Ignore zero scores (don’t write to DB / don’t show on leaderboard)
-if (score === 0) {
-  return json({
-    ok: true,
-    ignored: true,
-    message: "Zero score not recorded."
-  }, 200);
-}
+  if (!player_id) return json({ ok: false, error: "Missing player_id" }, 400);
+
+  // validate score
+  if (!Number.isFinite(score) || score < 0 || score > 9999) {
+    return json({ ok: false, error: "Invalid score" }, 400);
+  }
+
+  // server-side ignore zero scores
+  if (score === 0) {
+    return json({ ok: true, ignored: true, message: "Zero score not recorded." }, 200);
+  }
 
   if (!username) return json({ ok: false, error: "Missing username" }, 400);
   if (!isUsernameValid(username)) {
@@ -209,14 +191,11 @@ if (score === 0) {
   const nowSec = Math.floor(Date.now() / 1000);
   const week_key = weekKeyUTC(Date.now());
 
-  // Ensure tables/indexes are ready
   await ensureSchema(env);
 
-  // Unique username ownership
   const claim = await claimOrCheckUsername(env, username, player_id, nowSec);
   if (!claim.ok) return json({ ok: false, error: claim.error }, 409);
 
-  // Store weekly best automatically
   await upsertWeeklyBest(env, username, player_id, score, nowSec, week_key);
 
   const best_all_time = await getBestAllTime(env, username);
