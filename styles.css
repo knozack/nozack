@@ -340,3 +340,24 @@ input:focus, textarea:focus{ border-color: rgba(10,10,10,.30); }
     white-space: nowrap;
   }
 }
+
+/* ---- HERO POINTER-EVENT FIX (prevents overlap blocking clicks) ---- */
+
+/* Hero and its animated letters should never capture clicks */
+.hero,
+.hero * {
+  pointer-events: none !important;
+}
+
+/* Sections below must sit above the hero in stacking order */
+.section {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
+}
+
+/* Keep navigation clickable */
+.nav,
+.nav * {
+  pointer-events: auto !important;
+}
