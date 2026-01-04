@@ -965,24 +965,39 @@
   }
 
   function drawSlab(x, y, w, h, alpha = 1, level = 0) {
-    ctx.save();
+  ctx.save();
 
-    const fillHex = (level >= 21) ? BLUE_2 : BLUE_1;
+  const fillHex = (level >= 21) ? BLUE_2 : BLUE_1;
 
-    // Fill (solid, same for flying + landed)
-    ctx.fillStyle = rgba(fillHex, 0.92 * alpha);
+  // 3D shading: vertical gradient + subtle top highlight + subtle bottom shadow
+  const g = ctx.createLinearGradient(x, y, x, y + h);
+  g.addColorStop(0.00, rgba(lighten(fillHex, 0.18), 1.00 * alpha)); // brighter top
+  g.addColorStop(0.45, rgba(fillHex,               0.92 * alpha)); // base
+  g.addColorStop(1.00, rgba(darken(fillHex,  0.12), 0.92 * alpha)); // darker bottom
 
-    // Outline: same hue, slightly darker + a bit lower alpha than fill
-    ctx.strokeStyle = `rgba(${hexToRgb(darken(fillHex, 0.18)).r},${hexToRgb(darken(fillHex, 0.18)).g},${hexToRgb(darken(fillHex, 0.18)).b},${0.70 * alpha})`;
+  roundRectPath(x, y, w, h, RADIUS);
 
-    ctx.lineWidth = 1;
+  // Fill with gradient (no stroke/border)
+  ctx.fillStyle = g;
+  ctx.fill();
 
-    roundRectPath(x, y, w, h, RADIUS);
-    ctx.fill();
-    ctx.stroke();
+  // Top “sheen” highlight
+  ctx.globalAlpha = 0.22 * alpha;
+  const inset = 2.0;
+  const sheenH = Math.max(4, h * 0.35);
+  roundRectPath(x + inset, y + inset, w - inset * 2, sheenH, Math.max(2, RADIUS - 6));
+  ctx.fillStyle = rgba("#ffffff", 1);
+  ctx.fill();
 
-    ctx.restore();
-  }
+  // Bottom shadow band
+  ctx.globalAlpha = 0.10 * alpha;
+  const shadowH = Math.max(4, h * 0.28);
+  roundRectPath(x + inset, y + h - shadowH - inset, w - inset * 2, shadowH, Math.max(2, RADIUS - 6));
+  ctx.fillStyle = rgba("#000000", 1);
+  ctx.fill();
+
+  ctx.restore();
+}
 
   function loop(now) {
     const dt = Math.min(0.033, (now - last) / 1000);
