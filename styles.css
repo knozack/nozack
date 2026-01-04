@@ -121,6 +121,13 @@ main{ padding-top: 64px; }
   transform: translateZ(0);
 }
 
+/* Let hero letters be visible but NEVER block clicks */
+.titleStage,
+.titleWord,
+.letter{
+  pointer-events: none;
+}
+
 /* Sections */
 .section{ padding: 90px 0; border-top: 1px solid var(--hair); }
 
