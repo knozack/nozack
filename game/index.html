@@ -145,6 +145,18 @@
       border-color: rgba(0,145,255,0.22);
       color: rgba(10,10,10,0.90);
     }
+
+   /* --- Mobile tweak (paste is HERE: inside this <style> block) --- */
+    @media (max-width: 560px){
+      .hud{ top: 8px; left: 8px; right: 8px; gap: 8px; }
+
+      .pill{ font-size: 12px; padding: 8px 10px; }
+      input[type="text"]{ width: 120px; padding: 8px 10px; }
+      button{ padding: 8px 10px; font-size: 12px; }
+
+      /* optional: reduce wrap of the long instruction pill on small screens */
+      .hud .pill .muted:last-child{ display:none; }
+    }
   </style>
 </head>
 
