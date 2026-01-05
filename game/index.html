@@ -627,9 +627,10 @@
 
   const debris = [];
 
-  // --- Celebration (Level 20) ---
-  let celebrateUntil = 0;
-  const fireworks = [];
+  // --- Celebration (Milestones) ---
+let celebrateUntil = 0;
+let celebrateLevel = 0; // NEW: which level we’re celebrating
+const fireworks = [];
 
   function launchFireworks(y){
     // multi-color on white bg
@@ -717,14 +718,16 @@
     score++;
     scoreEl.textContent = score;
 
-    if (score === 20) {
-      celebrateUntil = performance.now() + (isMobile ? 2400 : 1800);
-      launchFireworks(newSlab.y);
-      beep({freq: 660, dur:0.05, gain:0.03});
-      beep({freq: 880, dur:0.06, gain:0.02});
-      if (isMobile) beep({freq: 990, dur:0.05, gain:0.02});
-    }
+  if (score === 20 || score === 30 || score === 40 || score === 50) {
+  celebrateLevel = score; // NEW
+  celebrateUntil = performance.now() + (isMobile ? 2400 : 1800);
+  launchFireworks(newSlab.y);
 
+  // little “bigger moment” on higher milestones
+  beep({freq: 660 + (score-20)*3, dur:0.05, gain:0.03});
+  beep({freq: 880 + (score-20)*3, dur:0.06, gain:0.02});
+  if (isMobile) beep({freq: 990 + (score-20)*3, dur:0.05, gain:0.02});
+}
     const quality = clamp(ov.w / prev.w, 0, 1);
     thud(0.6 + 0.7*quality);
 
@@ -933,7 +936,7 @@
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = `650 ${titleSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-      ctx.fillText('You Reached Level 20!', rect2.width/2, y + h/2);
+      ctx.fillText(`You Reached Level ${celebrateLevel || 20}!`, rect2.width/2, y + h/2);
 
       ctx.restore();
     }
